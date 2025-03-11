@@ -28,36 +28,35 @@ class StormDamageDataset(Dataset):
     def __getitem__(self, idx):
         """Loads a batch of main data, merges with weather data, and returns tensors."""
         start_row = idx * self.chunk_size
-        chunk_df = pl.read_csv(self.main_data_path, skip_rows=start_row, n_rows=self.chunk_size)
-        print(chunk_df.head())
+        chunk_df = pl.read_csv(self.main_data_path, skip_rows=start_row, n_rows=self.chunk_size, has_header=True)
         batch_features = []
         batch_labels = []
 
-        for row in chunk_df.iter_rows(named=True):
-            municipality = row['Municipality']
-            damage_extent = row['extent_of_damage']
-            damage_process = row['main_process']
-            date_str = row['Date']
+        for municipality, date_str, damage_extent, main_process in chunk_df.iter_rows(named=True):
             date = Date.fromisoformat(date_str)  # Convert string to date
-
             weather_features = self._load_weather_data(municipality, date)
             if weather_features is None:
-                continue  # Skip if weather data is missing
+                raise ValueError(f"No weather features loaded for {municipality} and {date}")
 
-            feature_vector = weather_features + [damage_process]  # Add damage process as a feature
+            try:
+                damage_extent = int(float(damage_extent))  # Ensure numeric type
+            except ValueError:
+                raise ValueError(f"Non-numeric value found in 'damage_extent': {damage_extent}")
+
+            feature_vector = weather_features
             batch_features.append(feature_vector)
             batch_labels.append(damage_extent)
 
         if not batch_features:
-            return None  # Handle empty batches
+            return None  # TODO
 
         # Convert to tensors
-        batch_features = torch.tensor(batch_features, dtype=torch.float32)
-        batch_labels = torch.tensor(batch_labels, dtype=torch.float32)
+        batch_features = torch.tensor(batch_features, dtype=torch.float16)
+        batch_labels = torch.tensor(batch_labels, dtype=torch.int)
 
         return batch_features, batch_labels
 
-    def _load_weather_data(self, municipality: str, date: Date, timespan: int):
+    def _load_weather_data(self, municipality: str, date: Date):
         """
         Loads weather data for a specific municipality.
         """
@@ -71,7 +70,10 @@ class StormDamageDataset(Dataset):
             raise FileNotFoundError(f"There is a missing weather file for {municipality}")
 
         with open(weather_file, "rb") as f:
-            data = oj.loads(f.read())
+            try:
+                data = oj.loads(f.read())
+            except:
+                raise ValueError(f"data could not be read of {municipality}")
         try:
             temperature_2m_mean = data['daily']['temperature_2m_mean'][start_date: end_date]
             sunshine_duration = data['daily']['sunshine_duration'][start_date: end_date]
@@ -84,14 +86,14 @@ class StormDamageDataset(Dataset):
         return weather_features
 
 # Example usage:
-main_data_path = '/Users/nilsgamperli/PycharmProjects/StormMind/data_engineering/Data/all_data.csv'  # Path to storm damage dataset
-weather_data_dir = '/Users/nilsgamperli/Downloads/weather_data'  # Directory with municipality weather JSONs
+main_data_path = '../data_engineering/Data/main_data.csv'  # Path to storm damage main dataset
+weather_data_dir = ''  # Directory with municipality weather as JSONs
 
-dataset = StormDamageDataset(main_data_path, weather_data_dir, chunk_size=1000000, timespan=7)
-dataloader = torch.utils.data.DataLoader(dataset, batch_size=32, shuffle=True)
+dataset = StormDamageDataset(main_data_path, weather_data_dir, chunk_size=2, timespan=7)
+dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=True)
 
 for batch in dataloader:
-    if batch is not None:  # Skip empty batches
+    if batch is not None:
         features, labels = batch
-        print(features.shape, labels.shape)
+        print(f"new batch with: {features , labels}")
 
