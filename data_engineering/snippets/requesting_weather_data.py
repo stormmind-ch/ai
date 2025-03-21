@@ -3,7 +3,9 @@ import openmeteo_requests
 import requests_cache
 import pandas as pd
 from retry_requests import retry
-
+import requests
+import os
+import json
 
 
 # Setup the Open-Meteo API client with cache and retry on error
@@ -44,5 +46,4 @@ def call(latitude, longitude, daily_parameters=None) -> pd.DataFrame:
         data[parameter] = daily.Variables(i).ValuesAsNumpy()
 
     return pd.DataFrame(data)
-
 
