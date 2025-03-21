@@ -48,7 +48,7 @@ class StormDamageDataset(Dataset):
             batch_labels.append(damage_extent)
 
         if not batch_features:
-            return None  # TODO
+            return None
 
         # Convert to tensors
         batch_features = torch.tensor(batch_features, dtype=torch.float16)
@@ -84,16 +84,3 @@ class StormDamageDataset(Dataset):
 
         weather_features = temperature_2m_mean + sunshine_duration + rain_sum + snowfall_sum
         return weather_features
-
-# Example usage:
-main_data_path = '../data_engineering/Data/main_data.csv'  # Path to storm damage main dataset
-weather_data_dir = ''  # Directory with municipality weather as JSONs
-
-dataset = StormDamageDataset(main_data_path, weather_data_dir, chunk_size=2, timespan=7)
-dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=True)
-
-for batch in dataloader:
-    if batch is not None:
-        features, labels = batch
-        print(f"new batch with: {features , labels}")
-
