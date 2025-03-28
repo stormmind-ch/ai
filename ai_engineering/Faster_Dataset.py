@@ -10,6 +10,13 @@ from tqdm import tqdm
 
 class StormDamageDataset(Dataset):
     def __init__(self, main_data_path: str, weather_data_dir: str, timespan: int):
+        self.error_bars = {
+            "Errors in weather data": tqdm(total=104_463_976, desc="Fehlerfortschritt Errors in weather data"),
+            "Missing weather file": tqdm(total=104_463_976, desc="Fehlerfortschritt Missing weather file"),
+            "Could not read weather data": tqdm(total=104_463_976, desc="Fehlerfortschritt Could not read weather data"),
+            "Non-numeric": tqdm(total=104_463_976, desc="Fehlerfortschritt Non-numeric"),
+            "Invalid or None in weather features": tqdm(total=104_463_976,desc="Fehlerfortschritt Invalid or None in weather features")
+        }
         """
         Args:
             main_data_path (str): Path to the main dataset CSV file.
@@ -72,7 +79,6 @@ class StormDamageDataset(Dataset):
                     try:
                         weather_cache[municipality] = oj.loads(f.read())
                     except:
-                        print("FICKEN")
                         self._log_error(municipality, "Could not read weather data")
                         continue
         return weather_cache
@@ -103,6 +109,14 @@ class StormDamageDataset(Dataset):
         return temperature_2m_mean + sunshine_duration + rain_sum + snowfall_sum
 
     def _log_error(self, municipality: str, message: str):
+
         """Logs errors to a file."""
         with open("helper_files/problem_mun.csv", "a") as file:
             file.write(f"{municipality},{message}\n")
+
+        for key in self.error_bars:
+            if message.startswith(key):
+                self.error_bars[key].update(1)
+                return
+
+        print(f"⚠️ Unbekannte Fehlermeldung: {message}")
