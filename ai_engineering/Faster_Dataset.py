@@ -5,6 +5,9 @@ import orjson as oj
 import polars as pl
 from datetime import date as Date
 
+from tqdm import tqdm
+
+
 class StormDamageDataset(Dataset):
     def __init__(self, main_data_path: str, weather_data_dir: str, timespan: int):
         """
@@ -59,7 +62,9 @@ class StormDamageDataset(Dataset):
     def _preload_weather_data(self):
         """Preloads all weather data into a dictionary for fast lookup."""
         weather_cache = {}
-        for file in os.listdir(self.weather_data_dir):
+
+        files = [f for f in os.listdir(self.weather_data_dir) if f.endswith(".json")]
+        for file in tqdm(files, desc="Lade Wetterdaten"):
             if file.endswith(".json"):
                 municipality = file.replace(".json", "")
                 file_path = os.path.join(self.weather_data_dir, file)
