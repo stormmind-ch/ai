@@ -39,16 +39,16 @@ class StormDamageDataset(Dataset):
         date = Date.fromisoformat(date_str)
         weather_features = self._get_weather_features(municipality, date)
 
-        if weather_features is None:
-            self._log_error(municipality, "No weather features loaded")
-            return
+        if not weather_features or any(x is None for x in weather_features):
+            self._log_error(municipality, "Invalid or None in weather features")
+            return None
             # raise ValueError(f"No weather features loaded for {municipality} and {date}")
 
         try:
             damage = int(float(damage))
         except ValueError:
             self._log_error(municipality, f"Non-numeric damage value: {damage}")
-            return
+            return None
             #raise ValueError(f"Non-numeric value found in 'damage': {damage}")
 
         # Convert to tensors
@@ -67,6 +67,7 @@ class StormDamageDataset(Dataset):
                     try:
                         weather_cache[municipality] = oj.loads(f.read())
                     except:
+                        print("FICKEN")
                         self._log_error(municipality, "Could not read weather data")
                         continue
         return weather_cache

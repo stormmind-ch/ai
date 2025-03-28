@@ -1,3 +1,7 @@
+import time
+import sys
+from tqdm import tqdm
+from tqdm import trange
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -25,24 +29,25 @@ optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 # ----------------------------------------
 
 # ---------- Setup WandB for hyperparameter tuning ----------
-wandb.init(project="pytorch_classifier", config={
-    "epochs": epochs,
-    "batch_size": batch_size,
-    "learning_rate": learning_rate,
-    "hidden_size": hidden_size,
-})
+
 # ----------------------------------------
 
 # ---------- Train one epoch ----------
 
 def train_one_epoch(model, dataloader, criterion, optimizer, device='cpu'):
-    print("Train one epoch started")
+    #print("Train one epoch started")
     model.train()
     running_loss = 0.0
     correct = 0
     total = 0
+    time_one = time.time()
+    time_two = time.time()
 
-    for i, (inputs, labels) in enumerate(dataloader):
+
+    for i, batch in enumerate(tqdm(dataloader, desc="Training", unit="batch", file=sys.stdout, dynamic_ncols=True, leave=True)):
+        if batch is None:
+            continue
+        (inputs, labels) = batch
         try:
             optimizer.zero_grad()
 
@@ -60,8 +65,11 @@ def train_one_epoch(model, dataloader, criterion, optimizer, device='cpu'):
             _, predicted = torch.max(outputs, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
-            if i % 100 == 0:
-                print('100 inputs done')
+            #if i % 100 == 0:
+                #time_two = time_one
+                #time_one = time.time()
+                ##duration = (time_one - time_two)
+                #print(f"100 inputs done in {duration:.2f} seconds")
         except Exception:
             continue
 
@@ -74,15 +82,11 @@ def train_one_epoch(model, dataloader, criterion, optimizer, device='cpu'):
 # Define function to train the model for multiple epochs
 def train(model, train_dataset, batch_size=1, learning_rate=0.001, epochs=1, device="cuda"):
     # Initialize WandB
-    wandb.init(project="pytorch_classifier", config={
-        "epochs": epochs,
-        "batch_size": batch_size,
-        "learning_rate": learning_rate,
-        "hidden_size": 128,
-    })
+
 
     # DataLoader
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
+    collate_fn=safe_collate)
     # Initialize loss function and optimizer
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
@@ -91,19 +95,24 @@ def train(model, train_dataset, batch_size=1, learning_rate=0.001, epochs=1, dev
     model.to(device)
 
     # Training loop
-    for epoch in range(epochs):
+    for epoch in trange(epochs, desc="Epochs", file=sys.stdout, dynamic_ncols=True, leave=True):
         train_loss, train_accuracy = train_one_epoch(model, train_loader, criterion, optimizer, device)
 
         # Log metrics to WandB
         #wandb.log({"epoch": epoch, "loss": train_loss, "accuracy": train_accuracy})
 
-        print(f"Epoch [{epoch + 1}/{epochs}], Loss: {train_loss:.4f}, Accuracy: {train_accuracy:.2f}%")
+        #print(f"Epoch [{epoch + 1}/{epochs}], Loss: {train_loss:.4f}, Accuracy: {train_accuracy:.2f}%")
 
-
+def safe_collate(batch):
+    # Filter out any None entries
+    batch = [item for item in batch if item is not None]
+    if len(batch) == 0:
+        return None  # or raise an error if this is unexpected
+    return torch.utils.data._utils.collate.default_collate(batch)
 
 if __name__ == "__main__":
 
-    train_data = StormDamageDataset('/Users/nilsgamperli/Documents/StormMindData/main_data_combined.csv', '/Users/nilsgamperli/Documents/StormMindData/weather_data', 7)
+    train_data = StormDamageDataset('../StormMindData/main_data_combined.csv', '../StormMindData/weather_data1', 7)
 
 
     # Train the model
