@@ -1,0 +1,12 @@
+method: random
+name: "hyperparameter-sweep"
+metric:
+  name: "loss"
+  goal: minimize
+parameters:
+  learning_rate:
+    values: [0.0001, 0.001, 0.01]
+  hidden_size:
+    values: [64, 128, 256]
+  batch_size:
+    values: [1, 32, 64, 128]

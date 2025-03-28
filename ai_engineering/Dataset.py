@@ -18,43 +18,41 @@ class StormDamageDataset(Dataset):
         self.chunk_size = chunk_size
         self.timespan = timespan
 
-        # Get total dataset length
-        self.total_rows = sum(1 for _ in open(main_data_path)) - 1  # Exclude header
+        self.data_df = pl.read_csv(self.main_data_path)
+        self.total_rows = self.data_df.shape[0]
+
 
     def __len__(self):
         """Returns the total number of chunks."""
-        return self.total_rows // self.chunk_size + 1
+        return self.total_rows
 
     def __getitem__(self, idx):
         """Loads a batch of main data, merges with weather data, and returns tensors."""
-        start_row = idx * self.chunk_size
-        chunk_df = pl.read_csv(self.main_data_path, skip_rows=start_row, n_rows=self.chunk_size, has_header=True)
-        batch_features = []
-        batch_labels = []
+        row = self.data_df[idx]
+        municipality = row["Municipality"][0]
+        date_str = row["Date"][0]
+        damage = row["combination_damage_mainprocess"][0]
 
-        for municipality, date_str, damage_extent, main_process in chunk_df.iter_rows(named=True):
-            date = Date.fromisoformat(date_str)  # Convert string to date
-            weather_features = self._load_weather_data(municipality, date)
-            if weather_features is None:
-                raise ValueError(f"No weather features loaded for {municipality} and {date}")
+        date = Date.fromisoformat(date_str)
+        weather_features = self._load_weather_data(municipality, date)
 
-            try:
-                damage_extent = int(float(damage_extent))  # Ensure numeric type
-            except ValueError:
-                raise ValueError(f"Non-numeric value found in 'damage_extent': {damage_extent}")
-
-            feature_vector = weather_features
-            batch_features.append(feature_vector)
-            batch_labels.append(damage_extent)
-
-        if not batch_features:
-            return None
+        if weather_features is None:
+            raise ValueError(f"No weather features loaded for {municipality} and {date}")
+        try:
+            damage = int(float(damage))
+        except ValueError:
+            raise ValueError(f"Non-numeric value found in 'damage': {damage}")
 
         # Convert to tensors
-        batch_features = torch.tensor(batch_features, dtype=torch.float16)
-        batch_labels = torch.tensor(batch_labels, dtype=torch.int)
+        try:
+            feature_vector = torch.tensor(weather_features, dtype=torch.float32)
+            label = torch.tensor(damage, dtype=torch.int64)
+            return feature_vector, label
+        except TypeError:
+            with open('helper_files/problem_mun.csv', 'wb') as file:
+                file.writelines([municipality])
 
-        return batch_features, batch_labels
+
 
     def _load_weather_data(self, municipality: str, date: Date):
         """
