@@ -4,19 +4,15 @@ import os
 import orjson as oj
 import polars as pl
 from datetime import date as Date
+import unicodedata
 
-from tqdm import tqdm
+
+def normalize_text(text):
+    return unicodedata.normalize("NFKC", text).replace("−", "-").strip().lower()
 
 
 class StormDamageDataset(Dataset):
     def __init__(self, main_data_path: str, weather_data_dir: str, timespan: int):
-        self.error_bars = {
-            "Errors in weather data": tqdm(total=104_463_976, desc="Fehlerfortschritt Errors in weather data"),
-            "Missing weather file": tqdm(total=104_463_976, desc="Fehlerfortschritt Missing weather file"),
-            "Could not read weather data": tqdm(total=104_463_976, desc="Fehlerfortschritt Could not read weather data"),
-            "Non-numeric": tqdm(total=104_463_976, desc="Fehlerfortschritt Non-numeric"),
-            "Invalid or None in weather features": tqdm(total=104_463_976,desc="Fehlerfortschritt Invalid or None in weather features")
-        }
         """
         Args:
             main_data_path (str): Path to the main dataset CSV file.
@@ -26,7 +22,6 @@ class StormDamageDataset(Dataset):
         self.weather_data_dir = weather_data_dir
         self.timespan = timespan
 
-        # Lazy load data instead of reading into memory
         self.data_df = pl.read_csv(main_data_path).to_dict(as_series=False)
         self.total_rows = len(self.data_df["Municipality"])
 
@@ -37,29 +32,26 @@ class StormDamageDataset(Dataset):
         os.makedirs("helper_files", exist_ok=True)
 
     def __len__(self):
-        """Returns the total number of samples."""
         return self.total_rows
 
     def __getitem__(self, idx):
-        """Loads a row, merges with weather data, and returns tensors."""
         municipality = self.data_df["Municipality"][idx]
+        normalized_municipality = normalize_text(municipality)
         date_str = self.data_df["Date"][idx]
         damage = self.data_df["combination_damage_mainprocess"][idx]
 
         date = Date.fromisoformat(date_str)
-        weather_features = self._get_weather_features(municipality, date)
+        weather_features = self._get_weather_features(normalized_municipality, date)
 
-        if not weather_features or any(x is None for x in weather_features):
-            self._log_error(municipality, "Invalid or None in weather features")
-            return None
-            # raise ValueError(f"No weather features loaded for {municipality} and {date}")
+        if not weather_features:
+            raise ValueError(f"No weather features loaded for {municipality} and {date}")
+        if  any(x is None for x in weather_features):
+            raise ValueError(f"None types in the loaded weather features: {weather_features}")
 
         try:
             damage = int(float(damage))
         except ValueError:
-            self._log_error(municipality, f"Non-numeric damage value: {damage}")
-            return None
-            #raise ValueError(f"Non-numeric value found in 'damage': {damage}")
+            raise ValueError(f"Non-numeric value found in 'damage': {damage}")
 
         # Convert to tensors
         feature_vector = torch.tensor(weather_features, dtype=torch.float32)
@@ -67,20 +59,22 @@ class StormDamageDataset(Dataset):
         return feature_vector, label
 
     def _preload_weather_data(self):
-        """Preloads all weather data into a dictionary for fast lookup."""
+        """
+        Preloads all weather data into a dictionary for fast lookup.
+        """
         weather_cache = {}
 
         files = [f for f in os.listdir(self.weather_data_dir) if f.endswith(".json")]
-        for file in tqdm(files, desc="Lade Wetterdaten"):
+        for file in files:
             if file.endswith(".json"):
                 municipality = file.replace(".json", "")
+                municipality_normalized = normalize_text(municipality)
                 file_path = os.path.join(self.weather_data_dir, file)
                 with open(file_path, "rb") as f:
                     try:
-                        weather_cache[municipality] = oj.loads(f.read())
+                        weather_cache[municipality_normalized] = oj.loads(f.read())
                     except:
-                        self._log_error(municipality, "Could not read weather data")
-                        continue
+                        raise Exception(f"Could not preload data for {municipality_normalized}")
         return weather_cache
 
     def _get_weather_features(self, municipality: str, date: Date):
@@ -91,32 +85,17 @@ class StormDamageDataset(Dataset):
         delta = date - first_date
         end_date = delta.days
         start_date = end_date - self.timespan
+        municipality_normalized = normalize_text(municipality)
 
-        if municipality not in self.weather_cache:
-            self._log_error(municipality, "Missing weather file")
-            return None
+        if municipality_normalized not in self.weather_cache:
+            raise Exception(f"{municipality_normalized} does not exist in weather data cache")
 
-        try:
-            data = self.weather_cache[municipality]
-            temperature_2m_mean = data['daily']['temperature_2m_mean'][start_date:end_date]
-            sunshine_duration = data['daily']['sunshine_duration'][start_date:end_date]
-            rain_sum = data['daily']['rain_sum'][start_date:end_date]
-            snowfall_sum = data['daily']['snowfall_sum'][start_date:end_date]
-        except:
-            self._log_error(municipality, "Errors in weather data")
-            return None
+        data = self.weather_cache[municipality_normalized]
+        temperature_2m_mean = data['daily']['temperature_2m_mean'][start_date:end_date]
+        sunshine_duration = data['daily']['sunshine_duration'][start_date:end_date]
+        rain_sum = data['daily']['rain_sum'][start_date:end_date]
+        snowfall_sum = data['daily']['snowfall_sum'][start_date:end_date]
 
         return temperature_2m_mean + sunshine_duration + rain_sum + snowfall_sum
 
-    def _log_error(self, municipality: str, message: str):
 
-        """Logs errors to a file."""
-        with open("helper_files/problem_mun.csv", "a") as file:
-            file.write(f"{municipality},{message}\n")
-
-        for key in self.error_bars:
-            if message.startswith(key):
-                self.error_bars[key].update(1)
-                return
-
-        print(f"⚠️ Unbekannte Fehlermeldung: {message}")

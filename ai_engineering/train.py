@@ -1,121 +1,114 @@
-import time
 import sys
-from tqdm import tqdm
-from tqdm import trange
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import wandb
+from tqdm import tqdm, trange
 from model_1 import Model
 from Faster_Dataset import StormDamageDataset
+from torch.utils.data import DataLoader, random_split
 
-# ---------- Hyperparameters ----------
-input_size = 28
-hidden_size = 128
-output_size = 16  # [0-15]
-batch_size = 64
-learning_rate = 0.001
-epochs = 10
-# ----------------------------------------
+# ---------- WandB Initialization ----------
+wandb.init(project="storm_damage_nn", config={
+    "input_size": 28,
+    "hidden_size": 128,
+    "output_size": 16,
+    "batch_size": 64,
+    "learning_rate": 0.001,
+    "epochs": 10
+})
+
+# Load hyperparameters from WandB
+config = wandb.config
 
 # ---------- Initialize Model ----------
-model = Model(input_size=input_size, hidden_size=hidden_size, output_size=output_size)
-# ----------------------------------------
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = Model(input_size=config.input_size, hidden_size=config.hidden_size, output_size=config.output_size).to(device)
 
-
-# ---------- Loss function and optimizer ----------
+# Loss function and optimizer
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-# ----------------------------------------
+optimizer = optim.Adam(model.parameters(), lr=config.learning_rate)
 
-# ---------- Setup WandB for hyperparameter tuning ----------
 
-# ----------------------------------------
-
-# ---------- Train one epoch ----------
-
-def train_one_epoch(model, dataloader, criterion, optimizer, device='cpu'):
-    #print("Train one epoch started")
+# ---------- Train One Epoch ----------
+def train_one_epoch(model, dataloader, criterion, optimizer, device):
     model.train()
     running_loss = 0.0
     correct = 0
     total = 0
-    time_one = time.time()
-    time_two = time.time()
+
+    for inputs, labels in tqdm(dataloader, desc="Training", unit="batch", file=sys.stdout, dynamic_ncols=True):
+        inputs, labels = inputs.to(device), labels.to(device)
+
+        optimizer.zero_grad()
+        outputs = model(inputs)
+        loss = criterion(outputs, labels)
+        loss.backward()
+        optimizer.step()
+
+        running_loss += loss.item()
+        _, predicted = torch.max(outputs, 1)
+        total += labels.size(0)
+        correct += (predicted == labels).sum().item()
+
+    return running_loss / len(dataloader), 100 * correct / total
 
 
-    for i, batch in enumerate(tqdm(dataloader, desc="Training", unit="batch", file=sys.stdout, dynamic_ncols=True, leave=True)):
-        if batch is None:
-            continue
-        (inputs, labels) = batch
-        try:
-            optimizer.zero_grad()
+# ---------- Validate One Epoch ----------
+def validate(model, dataloader, criterion, device):
+    model.eval()
+    running_loss = 0.0
+    correct = 0
+    total = 0
 
-            # Forward pass
+    with torch.no_grad():
+        for inputs, labels in tqdm(dataloader, desc="Validating", unit="batch", file=sys.stdout, dynamic_ncols=True):
+            inputs, labels = inputs.to(device), labels.to(device)
+
             outputs = model(inputs)
             loss = criterion(outputs, labels)
-
-            # Backward pass
-            loss.backward()
-            optimizer.step()
-
             running_loss += loss.item()
 
-            # Calculate accuracy
             _, predicted = torch.max(outputs, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
-            #if i % 100 == 0:
-                #time_two = time_one
-                #time_one = time.time()
-                ##duration = (time_one - time_two)
-                #print(f"100 inputs done in {duration:.2f} seconds")
-        except Exception:
-            continue
 
-    epoch_loss = running_loss / len(dataloader)
-    epoch_accuracy = 100 * correct / total
-    return epoch_loss, epoch_accuracy
+    return running_loss / len(dataloader), 100 * correct / total
 
 
-
-# Define function to train the model for multiple epochs
-def train(model, train_dataset, batch_size=1, learning_rate=0.001, epochs=1, device="cuda"):
-    # Initialize WandB
-
-
-    # DataLoader
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
-    collate_fn=safe_collate)
-    # Initialize loss function and optimizer
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-
-    # Move model to the selected device (GPU or CPU)
-    model.to(device)
-
-    # Training loop
-    for epoch in trange(epochs, desc="Epochs", file=sys.stdout, dynamic_ncols=True, leave=True):
+# ---------- Training Function ----------
+def train(model, train_loader, val_loader, criterion, optimizer, epochs, device):
+    for epoch in trange(epochs, desc="Epochs", file=sys.stdout, dynamic_ncols=True):
         train_loss, train_accuracy = train_one_epoch(model, train_loader, criterion, optimizer, device)
+        val_loss, val_accuracy = validate(model, val_loader, criterion, device)
 
-        # Log metrics to WandB
-        #wandb.log({"epoch": epoch, "loss": train_loss, "accuracy": train_accuracy})
+        wandb.log({
+            "epoch": epoch + 1,
+            "train_loss": train_loss,
+            "train_accuracy": train_accuracy,
+            "val_loss": val_loss,
+            "val_accuracy": val_accuracy
+        })
 
-        #print(f"Epoch [{epoch + 1}/{epochs}], Loss: {train_loss:.4f}, Accuracy: {train_accuracy:.2f}%")
+        print(f"Epoch [{epoch + 1}/{epochs}] - "
+              f"Train Loss: {train_loss:.4f}, Train Accuracy: {train_accuracy:.2f}% - "
+              f"Val Loss: {val_loss:.4f}, Val Accuracy: {val_accuracy:.2f}%")
 
-def safe_collate(batch):
-    # Filter out any None entries
-    batch = [item for item in batch if item is not None]
-    if len(batch) == 0:
-        return None  # or raise an error if this is unexpected
-    return torch.utils.data._utils.collate.default_collate(batch)
+
+# ---------- Main Function ----------
+def main():
+    dataset = StormDamageDataset('/Users/nilsgamperli/Documents/StormMindData/main_data_combined.csv',
+                                 '/Users/nilsgamperli/Downloads/weather_data2', 7)
+
+    train_size = int(0.8 * len(dataset))
+    val_size = len(dataset) - train_size
+    train_data, val_data = random_split(dataset, [train_size, val_size])
+
+    train_loader = DataLoader(train_data, batch_size=config.batch_size, shuffle=True)
+    val_loader = DataLoader(val_data, batch_size=config.batch_size)
+
+    train(model, train_loader, val_loader, criterion, optimizer, config.epochs, device)
+
 
 if __name__ == "__main__":
-
-    train_data = StormDamageDataset('../StormMindData/main_data_combined.csv', '../StormMindData/weather_data1', 7)
-
-
-    # Train the model
-    train(model, train_data, batch_size=batch_size, learning_rate=0.001, epochs=1,
-          device="cuda" if torch.cuda.is_available() else "cpu")
-
+    main()
