@@ -97,8 +97,8 @@ def train(model, train_loader, val_loader, criterion, optimizer, epochs, device)
 
 # ---------- Main Function ----------
 def main():
-    dataset = StormDamageDataset('/Users/nilsgamperli/Documents/StormMindData/main_data_combined.csv',
-                                 '/Users/nilsgamperli/Downloads/weather_data2', 7)
+    dataset = StormDamageDataset('../Ressources/main_data_combined.csv',
+                                 '../Ressources/weather_data2', 7)
 
     train_size = int(0.8 * len(dataset))
     val_size = len(dataset) - train_size
