@@ -24,9 +24,9 @@ wandb.init(project="storm_damage_nn", config=myconfig)
 config = wandb.config
 
 # ---------- Initialize Model ----------
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(device)
-model = Model(input_size=config.input_size, hidden_size=config.hidden_size, output_size=config.output_size).to(device)
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"RUNNING ON: {DEVICE}")
+model = Model(input_size=config.input_size, hidden_size=config.hidden_size, output_size=config.output_size).to(DEVICE)
 
 # Loss function and optimizer
 criterion = nn.CrossEntropyLoss()
@@ -61,26 +61,6 @@ def train_one_epoch(model, dataloader, criterion, optimizer, device):
 def validate(model, dataloader, criterion, device):
     model.eval()
     running_loss = 0.0
-    correct = 0
-    total = 0
-
-    with torch.no_grad():
-        for inputs, labels in tqdm(dataloader, desc="Validating", unit="batch", file=sys.stdout, dynamic_ncols=True):
-            inputs, labels = inputs.to(device), labels.to(device)
-
-            outputs = model(inputs)
-            loss = criterion(outputs, labels)
-            running_loss += loss.item()
-
-            _, predicted = torch.max(outputs, 1)
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
-
-    return running_loss / len(dataloader), 100 * correct / total
-
-def validate_with_metrics(model, dataloader, criterion, device):
-    model.eval()
-    running_loss = 0.0
     all_preds = []
     all_labels = []
 
@@ -108,7 +88,7 @@ def validate_with_metrics(model, dataloader, criterion, device):
 def train(model, train_loader, val_loader, criterion, optimizer, epochs, device):
     for epoch in trange(epochs, desc="Epochs", file=sys.stdout, dynamic_ncols=True):
         train_loss, train_accuracy = train_one_epoch(model, train_loader, criterion, optimizer, device)
-        val_loss, val_accuracy = validate(model, val_loader, criterion, device)
+        val_loss, val_accuracy, prec, rec, f1 = validate(model, val_loader, criterion, device)
 
         wandb.log({
             "epoch": epoch + 1,
@@ -121,8 +101,8 @@ def train(model, train_loader, val_loader, criterion, optimizer, epochs, device)
         print(f"Epoch [{epoch + 1}/{epochs}] - "
               f"Train Loss: {train_loss:.4f}, Train Accuracy: {train_accuracy:.2f}% - "
               f"Val Loss: {val_loss:.4f}, Val Accuracy: {val_accuracy:.2f}%")
-        val_loss, acc, prec, rec, f1 = validate_with_metrics(model, val_loader, criterion, device)
-        print(f"Loss: {val_loss:.4f} | Acc: {acc:.2f}% | Precision: {prec:.4f} | Recall: {rec:.4f} | F1: {f1:.4f}")
+
+        print(f"Loss: {val_loss:.4f} | Acc: {val_accuracy:.2f}% | Precision: {prec:.4f} | Recall: {rec:.4f} | F1: {f1:.4f}")
 
 
 # ---------- Main Function ----------
@@ -137,7 +117,7 @@ def main():
     train_loader = DataLoader(train_data, batch_size=config.batch_size, shuffle=True)
     val_loader = DataLoader(val_data, batch_size=config.batch_size)
 
-    train(model, train_loader, val_loader, criterion, optimizer, config.epochs, device)
+    train(model, train_loader, val_loader, criterion, optimizer, config.epochs, DEVICE)
 
     myPath = f"/models/input_size_{myconfig['input_size']}_hidden_size_{myconfig['hidden_size']}batch_size_{myconfig['batch_size']}_learning_rate_{myconfig['learning_rate']}"
     torch.save(model.state_dict(), myPath)

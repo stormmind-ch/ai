@@ -28,9 +28,6 @@ class StormDamageDataset(Dataset):
         # Preload weather data in memory
         self.weather_cache = self._preload_weather_data()
 
-        # Ensure error log directory exists
-        os.makedirs("helper_files", exist_ok=True)
-
     def __len__(self):
         return self.total_rows
 
