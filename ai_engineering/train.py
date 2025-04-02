@@ -8,7 +8,6 @@ from model_1 import Model
 from Faster_Dataset import StormDamageDataset
 from torch.utils.data import DataLoader, random_split
 from sklearn.metrics import precision_score, recall_score, f1_score
-from gpu_dataset import StormDamageDatasetGPU
 
 # ---------- WandB Initialization ----------
 myconfig={
@@ -67,7 +66,7 @@ def validate(model, dataloader, criterion, device):
 
     with torch.no_grad():
         for inputs, labels in tqdm(dataloader, desc="Validating", unit="batch", file=sys.stdout, dynamic_ncols=True):
-            inputs, labels = inputs.to(device), labels.to(device)
+            inputs, labels = inputs.to(device, non_blocking=True), labels.to(device, non_blocking=True)
 
             outputs = model(inputs)
             loss = criterion(outputs, labels)
@@ -108,10 +107,9 @@ def train(model, train_loader, val_loader, criterion, optimizer, epochs, device)
 
 # ---------- Main Function ----------
 def main():
-    raw_dataset = StormDamageDataset('../Ressources/main_data_combined.csv',
+    dataset = StormDamageDataset('../Ressources/main_data_combined.csv',
                                  '../Ressources/weather_data2', 7)
 
-    dataset = StormDamageDatasetGPU(raw_dataset, DEVICE)
 
     train_size = int(0.8 * len(dataset))
     val_size = len(dataset) - train_size

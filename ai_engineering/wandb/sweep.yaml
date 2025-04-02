@@ -5,9 +5,9 @@ metric:
   goal: maximize
 parameters:
   batch_size:
-    values: [32, 64, 128]
+    values: [64, 128, 256]
   learning_rate:
     min: 0.0001
-    max: 0.01
+    max: 1
   hidden_size:
     values: [64, 128, 256]
