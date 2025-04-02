@@ -8,6 +8,7 @@ from model_1 import Model
 from Faster_Dataset import StormDamageDataset
 from torch.utils.data import DataLoader, random_split
 from sklearn.metrics import precision_score, recall_score, f1_score
+from gpu_dataset import StormDamageDatasetGPU
 
 # ---------- WandB Initialization ----------
 myconfig={
@@ -107,15 +108,17 @@ def train(model, train_loader, val_loader, criterion, optimizer, epochs, device)
 
 # ---------- Main Function ----------
 def main():
-    dataset = StormDamageDataset('../Ressources/main_data_combined.csv',
+    raw_dataset = StormDamageDataset('../Ressources/main_data_combined.csv',
                                  '../Ressources/weather_data2', 7)
+
+    dataset = StormDamageDatasetGPU(raw_dataset, DEVICE)
 
     train_size = int(0.8 * len(dataset))
     val_size = len(dataset) - train_size
     train_data, val_data = random_split(dataset, [train_size, val_size])
 
-    train_loader = DataLoader(train_data, batch_size=config.batch_size, shuffle=True)
-    val_loader = DataLoader(val_data, batch_size=config.batch_size)
+    train_loader = DataLoader(train_data, batch_size=config.batch_size, shuffle=True, pin_memory=True, num_workers=4)
+    val_loader = DataLoader(val_data, batch_size=config.batch_size, pin_memory=True, num_workers=4)
 
     train(model, train_loader, val_loader, criterion, optimizer, config.epochs, DEVICE)
 
