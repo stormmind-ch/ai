@@ -7,6 +7,7 @@ from tqdm import tqdm, trange
 from model_1 import Model
 from Faster_Dataset import StormDamageDataset
 from torch.utils.data import DataLoader, random_split
+from sklearn.metrics import precision_score, recall_score, f1_score
 
 # ---------- WandB Initialization ----------
 wandb.init(project="storm_damage_nn", config={
@@ -76,6 +77,31 @@ def validate(model, dataloader, criterion, device):
 
     return running_loss / len(dataloader), 100 * correct / total
 
+def validate_with_metrics(model, dataloader, criterion, device):
+    model.eval()
+    running_loss = 0.0
+    all_preds = []
+    all_labels = []
+
+    with torch.no_grad():
+        for inputs, labels in tqdm(dataloader, desc="Validating", unit="batch", file=sys.stdout, dynamic_ncols=True):
+            inputs, labels = inputs.to(device), labels.to(device)
+
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+            running_loss += loss.item()
+
+            _, predicted = torch.max(outputs, 1)
+            all_preds.extend(predicted.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
+
+    avg_loss = running_loss / len(dataloader)
+    accuracy = 100 * (torch.tensor(all_preds) == torch.tensor(all_labels)).sum().item() / len(all_labels)
+    precision = precision_score(all_labels, all_preds, average='binary', zero_division=0)
+    recall = recall_score(all_labels, all_preds, average='binary', zero_division=0)
+    f1 = f1_score(all_labels, all_preds, average='binary', zero_division=0)
+
+    return avg_loss, accuracy, precision, recall, f1
 
 # ---------- Training Function ----------
 def train(model, train_loader, val_loader, criterion, optimizer, epochs, device):
@@ -94,6 +120,8 @@ def train(model, train_loader, val_loader, criterion, optimizer, epochs, device)
         print(f"Epoch [{epoch + 1}/{epochs}] - "
               f"Train Loss: {train_loss:.4f}, Train Accuracy: {train_accuracy:.2f}% - "
               f"Val Loss: {val_loss:.4f}, Val Accuracy: {val_accuracy:.2f}%")
+        val_loss, acc, prec, rec, f1 = validate_with_metrics(model, val_loader, criterion, device)
+        print(f"Loss: {val_loss:.4f} | Acc: {acc:.2f}% | Precision: {prec:.4f} | Recall: {rec:.4f} | F1: {f1:.4f}")
 
 
 # ---------- Main Function ----------
