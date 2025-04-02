@@ -10,14 +10,15 @@ from torch.utils.data import DataLoader, random_split
 from sklearn.metrics import precision_score, recall_score, f1_score
 
 # ---------- WandB Initialization ----------
-wandb.init(project="storm_damage_nn", config={
+myconfig={
     "input_size": 28,
     "hidden_size": 128,
     "output_size": 16,
     "batch_size": 64,
     "learning_rate": 0.001,
     "epochs": 10
-})
+}
+wandb.init(project="storm_damage_nn", config=myconfig)
 
 # Load hyperparameters from WandB
 config = wandb.config
@@ -137,6 +138,9 @@ def main():
     val_loader = DataLoader(val_data, batch_size=config.batch_size)
 
     train(model, train_loader, val_loader, criterion, optimizer, config.epochs, device)
+
+    myPath = f"/models/input_size_{myconfig['input_size']}_hidden_size_{myconfig['hidden_size']}batch_size_{myconfig['batch_size']}_learning_rate_{myconfig['learning_rate']}"
+    torch.save(model.state_dict(), myPath)
 
 
 if __name__ == "__main__":
