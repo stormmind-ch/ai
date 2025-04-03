@@ -1,0 +1,103 @@
+from torch.utils.data import Dataset
+import torch
+import os
+import orjson as oj
+import polars as pl
+from datetime import date as Date
+import unicodedata
+import numpy as np
+
+
+def normalize_text(text):
+    return unicodedata.normalize("NFKC", text).replace("−", "-").strip().lower()
+
+
+class StormDamageDataset(Dataset):
+    def __init__(self, main_data_path: str, weather_data_dir: str, timespan: int):
+        """
+        Args:
+            main_data_path (str): Path to the main dataset CSV file.
+            weather_data_dir (str): Directory containing weather data files for each municipality.
+            timespan (int): Number of past days to consider for weather data.
+        """
+        self.weather_data_dir = weather_data_dir
+        self.timespan = timespan
+        self.municipalities, self.dates, self.damages = self._load_main_dataset_to_numpy(main_data_path)
+        self.total_rows = len(self.municipalities)
+        self.weather_cache = self._preload_weather_data()
+
+    def __len__(self):
+        return self.total_rows
+
+    def __getitem__(self, idx):
+        municipality = self.municipalities[idx]
+        date_str = self.dates[idx]
+        damage = self.damages[idx]
+
+        normalized_municipality = normalize_text(municipality)
+        date = Date.fromisoformat(date_str)
+        weather_features = self._get_weather_features(normalized_municipality, date)
+
+        if weather_features is None:
+            raise ValueError(f"No weather features loaded for {municipality} and {date}")
+        if np.any(np.isnan(weather_features)):
+            raise ValueError(f"NaN values in the loaded weather features: {weather_features}")
+
+
+        feature_vector = torch.tensor(weather_features, dtype=torch.float32)
+        label = torch.tensor(int(damage), dtype=torch.int64)
+
+        return feature_vector, label
+
+    def _load_main_dataset_to_numpy(self, main_data_path):
+        df = pl.read_csv(main_data_path)
+        municipalities = df["Municipality"].to_numpy()
+        dates = df["Date"].to_numpy()
+        damages = df["combination_damage_mainprocess"].to_numpy()
+        return municipalities, dates, damages
+
+    def _preload_weather_data(self):
+        """
+        Preloads all weather data into a dictionary for fast lookup.
+        """
+        weather_cache = {}
+
+        files = [f for f in os.listdir(self.weather_data_dir) if f.endswith(".json")]
+        for file in files:
+            if file.endswith(".json"):
+                municipality = file.replace(".json", "")
+                municipality_normalized = normalize_text(municipality)
+                file_path = os.path.join(self.weather_data_dir, file)
+                with open(file_path, "rb") as f:
+                    try:
+                        raw_data = oj.loads(f.read())
+                        weather_cache[municipality_normalized] = {
+                            "temperature_2m_mean": np.array(raw_data["daily"]["temperature_2m_mean"], dtype=np.float32),
+                            "sunshine_duration": np.array(raw_data["daily"]["sunshine_duration"], dtype=np.float32),
+                            "rain_sum": np.array(raw_data["daily"]["rain_sum"], dtype=np.float32),
+                            "snowfall_sum": np.array(raw_data["daily"]["snowfall_sum"], dtype=np.float32),
+                        }
+                    except:
+                        raise Exception(f"Could not preload data for {municipality_normalized}")
+        return weather_cache
+
+    def _get_weather_features(self, municipality: str, date: Date):
+        """
+        Retrieves weather data from preloaded cache.
+        """
+        first_date = Date(1972, 1, 1)
+        delta = date - first_date
+        end_date = delta.days
+        start_date = end_date - self.timespan
+        municipality_normalized = normalize_text(municipality)
+
+        if municipality_normalized not in self.weather_cache:
+            raise Exception(f"{municipality_normalized} does not exist in weather data cache")
+
+        data = self.weather_cache[municipality_normalized]
+        temperature_2m_mean = data['temperature_2m_mean'][start_date:end_date]
+        sunshine_duration = data['sunshine_duration'][start_date:end_date]
+        rain_sum = data['rain_sum'][start_date:end_date]
+        snowfall_sum = data['snowfall_sum'][start_date:end_date]
+
+        return np.concatenate([temperature_2m_mean, sunshine_duration, rain_sum, snowfall_sum])
