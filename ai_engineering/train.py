@@ -74,20 +74,24 @@ def validate(model, dataloader, criterion, device):
     recall = recall_score(all_labels, all_preds, average='weighted', zero_division=0)
     f1 = f1_score(all_labels, all_preds, average='weighted', zero_division=0)
 
-    return avg_loss, accuracy, precision, recall, f1
+    return avg_loss, accuracy, precision, recall, f1, all_labels, all_preds
 
 # ---------- Training Function ----------
 def train(model, train_loader, val_loader, criterion, optimizer, epochs, device):
     for epoch in trange(epochs, desc="Epochs", file=sys.stdout, dynamic_ncols=True):
         train_loss, train_accuracy = train_one_epoch(model, train_loader, criterion, optimizer, device)
-        val_loss, val_accuracy, prec, rec, f1 = validate(model, val_loader, criterion, device)
+        val_loss, val_accuracy, prec, rec, f1, all_labels, all_preds = validate(model, val_loader, criterion, device)
 
         wandb.log({
             "epoch": epoch + 1,
             "train_loss": train_loss,
             "train_accuracy": train_accuracy,
             "val_loss": val_loss,
-            "val_accuracy": val_accuracy
+            "val_accuracy": val_accuracy,
+            "confusion_matrix": wandb.plot.confusion_matrix(probs=None,
+                        y_true=all_labels, preds=all_preds,
+                        class_names=[i for i in range(16)])
+
         })
 
         print(f"Epoch [{epoch + 1}/{epochs}] - "
@@ -112,7 +116,7 @@ def main():
 
     train(model, train_loader, val_loader, criterion, optimizer, config.epochs, DEVICE)
 
-    myPath = f"/models/hidden_size_{config.hidden_size}_batch_size_{config.batch_size}_learning_rate_{config.learning_rate}"
+    myPath = f"/models/hidden_size_{config.hidden_size}_batch_size_{config.batch_size}_learning_rate_{config.learning_rate}.pth"
     torch.save(model.state_dict(), myPath)
 
 
