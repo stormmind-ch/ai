@@ -116,7 +116,7 @@ def main():
 
     train(model, train_loader, val_loader, criterion, optimizer, config.epochs, DEVICE)
 
-    myPath = f"/models/hidden_size_{config.hidden_size}_batch_size_{config.batch_size}_learning_rate_{config.learning_rate}.pth"
+    myPath = f"models/hidden_size_{config.hidden_size}_batch_size_{config.batch_size}_learning_rate_{config.learning_rate}.pth"
     torch.save(model.state_dict(), myPath)
 
 
