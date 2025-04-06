@@ -1,0 +1,16 @@
+{
+  "os":  "macOS-15.3.2-arm64-arm-64bit",
+  "python":  "CPython 3.12.9",
+  "startedAt":  "2025-04-04T14:15:43.978796Z",
+  "program":  "/Users/nilsgamperli/PycharmProjects/StormMind/ai_engineering/train.py",
+  "codePath":  "ai_engineering/train.py",
+  "git":  {
+    "remote":  "https://github.com/Nelson0101/StormMind.git",
+    "commit":  "4890241ba63e90161f2903214cd60aea0efd6596"
+  },
+  "email":  "n.gaemperli@gmail.com",
+  "root":  "/Users/nilsgamperli/PycharmProjects/StormMind/ai_engineering",
+  "host":  "nilss-macbook-pro.local.dynamic.zhaw.ch",
+  "executable":  "/opt/homebrew/anaconda3/envs/stormmind/bin/python",
+  "codePathLocal":  "train.py"
+}
