@@ -1,0 +1,14 @@
+wandb_version: 1
+
+batch_size:
+  value: 64
+epochs:
+  value: 2
+hidden_size:
+  value: 256
+input_size:
+  value: 28
+learning_rate:
+  value: 0.07563276706996222
+output_size:
+  value: 16

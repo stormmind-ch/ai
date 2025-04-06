@@ -1,0 +1,55 @@
+{
+    "os": "macOS-15.3.2-arm64-arm-64bit",
+    "python": "CPython 3.12.9",
+    "heartbeatAt": "2025-04-02T18:52:49.566148",
+    "startedAt": "2025-04-02T18:52:49.090933",
+    "docker": null,
+    "args": [
+        "service",
+        "--debug",
+        "--port-filename",
+        "/var/folders/hl/p763nlw90_5fw2097x_zh3ph0000gn/T/tmpgixn2v0h/port-8551.txt",
+        "--pid",
+        "8551"
+    ],
+    "state": "running",
+    "program": "/Users/nilsgamperli/PycharmProjects/StormMind/ai_engineering/train.py",
+    "codePathLocal": "train.py",
+    "codePath": "ai_engineering/train.py",
+    "git": {
+        "remote": "https://github.com/Nelson0101/StormMind.git",
+        "commit": "325ccc8d4a1dfdde358d3ba3734028b9807fcd43"
+    },
+    "email": "n.gaemperli@gmail.com",
+    "root": "/Users/nilsgamperli/PycharmProjects/StormMind",
+    "host": "nilss-macbook-pro.local.dynamic.zhaw.ch",
+    "username": null,
+    "executable": "/opt/homebrew/anaconda3/envs/stormmind/bin/python",
+    "cpu_count": 10,
+    "cpu_count_logical": 10,
+    "cpu_freq": {
+        "current": 4,
+        "min": 0,
+        "max": 4
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 4,
+            "min": 0,
+            "max": 4
+        }
+    ],
+    "disk": {
+        "/": {
+            "total": 494384795648,
+            "used": 218831228928
+        },
+        "/System/Volumes/Data": {
+            "total": 494384795648,
+            "used": 218831228928
+        }
+    },
+    "memory": {
+        "total": 17179869184
+    }
+}
