@@ -1,0 +1,19 @@
+program: train.py
+method: bayes
+metric:
+  name: val_accuracy
+  goal: maximize
+parameters:
+  batch_size:
+    values: [64, 128, 256]
+  learning_rate:
+    min: 0.0001
+    max: 0.1
+  hidden_size:
+    values: [64, 128, 256]
+  input_size:
+    values: [28]
+  output_size:
+    values: [16]
+  epochs:
+    values: [2,4,8,10]
