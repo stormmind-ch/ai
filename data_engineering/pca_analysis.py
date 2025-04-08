@@ -10,7 +10,6 @@ if __name__ == '__main__':
 
     dataloader = DataLoader(
         dataset,
-        num_workers=1,  # can stay 1 or even 0 for debugging
         shuffle=False,
     )
 
