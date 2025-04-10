@@ -14,6 +14,6 @@ parameters:
   input_size:
     values: [28]
   output_size:
-    values: [16]
+    values: [10]
   epochs:
     values: [2,4,8,10]
