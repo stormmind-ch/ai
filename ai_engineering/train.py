@@ -8,6 +8,7 @@ from model_1 import Model
 from Faster_Dataset import StormDamageDataset
 from torch.utils.data import DataLoader, random_split
 from sklearn.metrics import precision_score, recall_score, f1_score
+from compute_class_weights import compute_class_weights
 
 # ---------- WandB Initialization ----------
 wandb.init(project="stormmind.ai")
@@ -20,9 +21,6 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"RUNNING ON: {DEVICE}")
 model = Model(input_size=config.input_size, hidden_size=config.hidden_size, output_size=config.output_size).to(DEVICE)
 
-# Loss function and optimizer
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=config.learning_rate)
 
 
 # ---------- Train One Epoch ----------
@@ -91,7 +89,7 @@ def train(model, train_loader, val_loader, criterion, optimizer, epochs, device)
             "val_accuracy": val_accuracy,
             "confusion_matrix": wandb.plot.confusion_matrix(probs=None,
                         y_true=all_labels, preds=all_preds,
-                        class_names=[i for i in range(16)])
+                        class_names=[i for i in range(config.output_size)])
 
         })
 
@@ -114,7 +112,10 @@ def main():
     train_loader = DataLoader(train_data, batch_size=config.batch_size, shuffle=True, pin_memory=True, num_workers=4)
     val_loader = DataLoader(val_data, batch_size=config.batch_size, pin_memory=True, num_workers=4)
     test_loader = DataLoader(test_data, batch_size=config.batch_size, pin_memory=True, num_workers=4)
+
     # Train the model
+    criterion = nn.CrossEntropyLoss(weight=compute_class_weights(dataset.damages))
+    optimizer = optim.Adam(model.parameters(), lr=config.learning_rate)
     train(model, train_loader, val_loader, criterion, optimizer, config.epochs, DEVICE)
     test_loss, test_accuracy, prec, rec, f1, all_labels, all_preds = validate(model, test_loader, criterion, DEVICE)
     wandb.log({
@@ -124,7 +125,7 @@ def main():
         "test_f1" : f1,
         "test_confusion_matrix": wandb.plot.confusion_matrix(probs=None,
                                                         y_true=all_labels, preds=all_preds,
-                                                        class_names=[i for i in range(10)])
+                                                        class_names=[i for i in range(config.output_size)])
 
     })
 
