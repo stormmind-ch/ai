@@ -113,9 +113,20 @@ def main():
     train_loader = DataLoader(train_data, batch_size=config.batch_size, shuffle=True, pin_memory=True, num_workers=4)
     val_loader = DataLoader(val_data, batch_size=config.batch_size, pin_memory=True, num_workers=4)
     test_loader = DataLoader(test_data, batch_size=config.batch_size, pin_memory=True, num_workers=4)
-
     # Train the model
     train(model, train_loader, val_loader, criterion, optimizer, config.epochs, DEVICE)
+    test_loss, test_accuracy, prec, rec, f1, all_labels, all_preds = validate(model, test_loader, criterion, DEVICE)
+    wandb.log({
+        "test_loss": test_loss,
+        "test_accuracy": test_accuracy,
+        "test_precision" : rec,
+        "test_f1" : f1,
+        "test_confusion_matrix": wandb.plot.confusion_matrix(probs=None,
+                                                        y_true=all_labels, preds=all_preds,
+                                                        class_names=[i for i in range(10)])
+
+    })
+
 
     myPath = f"models/hidden_size_{config.hidden_size}_batch_size_{config.batch_size}_learning_rate_{config.learning_rate}.pth"
     torch.save(model.state_dict(), myPath)
