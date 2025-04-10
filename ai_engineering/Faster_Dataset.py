@@ -27,6 +27,7 @@ class StormDamageDataset(Dataset):
         self.total_rows = len(self.municipalities)
         self.weather_cache = self._preload_weather_data()
         date_objs = np.array([datetime.strptime(d, "%Y-%m-%d") for d in self.dates])
+        self.mean, self.std = self._compute_normalization_stats(self.train_indices)
 
         # Store indices based on date ranges
         self.train_indices = np.where((date_objs >= datetime.strptime(start_train, "%Y-%m-%d")) &
@@ -56,7 +57,7 @@ class StormDamageDataset(Dataset):
             raise ValueError(f"NaN values in the loaded weather features: {weather_features}")
 
 
-        feature_vector = torch.tensor(weather_features, dtype=torch.float32)
+        feature_vector = torch.tensor((weather_features - self.mean) / self.std, dtype=torch.float32)
         label = torch.tensor(int(damage), dtype=torch.int64)
 
         return feature_vector, label
@@ -67,6 +68,24 @@ class StormDamageDataset(Dataset):
         dates = df["Date"].to_numpy()
         damages = df["combination_damage_mainprocess"].to_numpy()
         return municipalities, dates, damages
+
+    def _compute_normalization_stats(self, indices):
+        features = []
+
+        for idx in indices:
+            municipality = self.municipalities[idx]
+            date_str = self.dates[idx]
+            date = Date.fromisoformat(date_str)
+            normalized_municipality = normalize_text(municipality)
+            weather_features = self._get_weather_features(normalized_municipality, date)
+
+            if weather_features is not None:
+                features.append(weather_features)
+
+        feature_matrix = np.stack(features)
+        mean = feature_matrix.mean(axis=0)
+        std = feature_matrix.std(axis=0) + 1e-8  # Add epsilon to avoid division by zero
+        return mean, std
 
     def _preload_weather_data(self):
         """
