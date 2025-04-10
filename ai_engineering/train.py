@@ -114,7 +114,7 @@ def main():
     test_loader = DataLoader(test_data, batch_size=config.batch_size, pin_memory=True, num_workers=4)
 
     # Train the model
-    criterion = nn.CrossEntropyLoss(weight=compute_class_weights(dataset.damages))
+    criterion = nn.CrossEntropyLoss(weight=compute_class_weights(dataset.damages).to(DEVICE))
     optimizer = optim.Adam(model.parameters(), lr=config.learning_rate)
     train(model, train_loader, val_loader, criterion, optimizer, config.epochs, DEVICE)
     test_loss, test_accuracy, prec, rec, f1, all_labels, all_preds = validate(model, test_loader, criterion, DEVICE)
