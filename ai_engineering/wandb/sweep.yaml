@@ -17,3 +17,5 @@ parameters:
     values: [10]
   epochs:
     values: [2,4,8,10]
+  gradient_clipping:
+    values: [0.5, 1.0, 2.0]
