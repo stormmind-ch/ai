@@ -104,17 +104,29 @@ def train(model, train_loader, val_loader, criterion, optimizer, epochs, device)
 # ---------- Main Function ----------
 def main():
     dataset = StormDamageDataset('../Ressources/main_data_combined.csv',
-                                 '../Ressources/weather_data2', 7)
+                                 '../Ressources/weather_data2', 7, '1972-01-01', '2002-01-01', '2012-01-01')
 
-
-    train_size = int(0.8 * len(dataset))
-    val_size = len(dataset) - train_size
-    train_data, val_data = random_split(dataset, [train_size, val_size])
+    train_data = torch.utils.data.Subset(dataset, dataset.train_indices)
+    val_data = torch.utils.data.Subset(dataset, dataset.val_indices)
+    test_data = torch.utils.data.Subset(dataset, dataset.test_indices)
 
     train_loader = DataLoader(train_data, batch_size=config.batch_size, shuffle=True, pin_memory=True, num_workers=4)
     val_loader = DataLoader(val_data, batch_size=config.batch_size, pin_memory=True, num_workers=4)
-
+    test_loader = DataLoader(test_data, batch_size=config.batch_size, pin_memory=True, num_workers=4)
+    # Train the model
     train(model, train_loader, val_loader, criterion, optimizer, config.epochs, DEVICE)
+    test_loss, test_accuracy, prec, rec, f1, all_labels, all_preds = validate(model, test_loader, criterion, DEVICE)
+    wandb.log({
+        "test_loss": test_loss,
+        "test_accuracy": test_accuracy,
+        "test_precision" : rec,
+        "test_f1" : f1,
+        "test_confusion_matrix": wandb.plot.confusion_matrix(probs=None,
+                                                        y_true=all_labels, preds=all_preds,
+                                                        class_names=[i for i in range(10)])
+
+    })
+
 
     myPath = f"models/hidden_size_{config.hidden_size}_batch_size_{config.batch_size}_learning_rate_{config.learning_rate}.pth"
     torch.save(model.state_dict(), myPath)
