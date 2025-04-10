@@ -27,7 +27,7 @@ class StormDamageDataset(Dataset):
         self.total_rows = len(self.municipalities)
         self.weather_cache = self._preload_weather_data()
         date_objs = np.array([datetime.strptime(d, "%Y-%m-%d") for d in self.dates])
-        self.mean, self.std = self._compute_normalization_stats(self.train_indices)
+
 
         # Store indices based on date ranges
         self.train_indices = np.where((date_objs >= datetime.strptime(start_train, "%Y-%m-%d")) &
@@ -37,7 +37,7 @@ class StormDamageDataset(Dataset):
                                     (date_objs < datetime.strptime(start_test, "%Y-%m-%d")))[0]
 
         self.test_indices = np.where(date_objs >= datetime.strptime(start_test, "%Y-%m-%d"))[0]
-
+        self.mean, self.std = self._compute_normalization_stats(self.train_indices)
 
     def __len__(self):
         return self.total_rows
