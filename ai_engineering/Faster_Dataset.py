@@ -6,6 +6,7 @@ import polars as pl
 from datetime import date as Date
 import unicodedata
 import numpy as np
+from datetime import datetime
 
 
 def normalize_text(text):
@@ -13,7 +14,7 @@ def normalize_text(text):
 
 
 class StormDamageDataset(Dataset):
-    def __init__(self, main_data_path: str, weather_data_dir: str, timespan: int):
+    def __init__(self, main_data_path: str, weather_data_dir: str, timespan: int, start_train: str, start_val: str, start_test: str):
         """
         Args:
             main_data_path (str): Path to the main dataset CSV file.
@@ -25,6 +26,17 @@ class StormDamageDataset(Dataset):
         self.municipalities, self.dates, self.damages = self._load_main_dataset_to_numpy(main_data_path)
         self.total_rows = len(self.municipalities)
         self.weather_cache = self._preload_weather_data()
+        date_objs = np.array([datetime.strptime(d, "%Y-%m-%d") for d in self.dates])
+
+        # Store indices based on date ranges
+        self.train_indices = np.where((date_objs >= datetime.strptime(start_train, "%Y-%m-%d")) &
+                                      (date_objs < datetime.strptime(start_val, "%Y-%m-%d")))[0]
+
+        self.val_indices = np.where((date_objs >= datetime.strptime(start_val, "%Y-%m-%d")) &
+                                    (date_objs < datetime.strptime(start_test, "%Y-%m-%d")))[0]
+
+        self.test_indices = np.where(date_objs >= datetime.strptime(start_test, "%Y-%m-%d"))[0]
+
 
     def __len__(self):
         return self.total_rows
