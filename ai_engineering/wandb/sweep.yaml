@@ -19,3 +19,6 @@ parameters:
     values: [0.5, 1.0, 2.0]
   timespan:
     values: [21,28, 35]
+  downsample_ratio:
+    min: 0.001
+    max: 0.2
