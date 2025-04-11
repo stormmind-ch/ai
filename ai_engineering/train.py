@@ -9,7 +9,7 @@ from Faster_Dataset import StormDamageDataset
 from torch.utils.data import DataLoader, random_split
 from sklearn.metrics import precision_score, recall_score, f1_score
 from compute_class_weights import compute_class_weights
-
+from downsampler import RandomDownsampler
 # ---------- WandB Initialization ----------
 wandb.init(project="stormmind.ai")
 
@@ -105,7 +105,8 @@ def main():
     dataset = StormDamageDataset('../Ressources/main_data_combined.csv',
                                  '../Ressources/weather_data2', config.timespan, '1972-01-01', '2002-01-01', '2012-01-01')
 
-    train_data = torch.utils.data.Subset(dataset, dataset.train_indices)
+    downsampler = RandomDownsampler(dataset)
+    train_data =  downsampler.downsample_majority_class(config.downsample_ratio)
     val_data = torch.utils.data.Subset(dataset, dataset.val_indices)
     test_data = torch.utils.data.Subset(dataset, dataset.test_indices)
 
@@ -128,8 +129,6 @@ def main():
                                                         class_names=[i for i in range(config.output_size)])
 
     })
-
-
     myPath = f"models/hidden_size_{config.hidden_size}_batch_size_{config.batch_size}_learning_rate_{config.learning_rate}.pth"
     torch.save(model.state_dict(), myPath)
 
