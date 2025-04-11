@@ -56,8 +56,8 @@ class StormDamageDataset(Dataset):
         if np.any(np.isnan(weather_features)):
             raise ValueError(f"NaN values in the loaded weather features: {weather_features}")
 
-
-        feature_vector = torch.tensor((weather_features - self.mean) / self.std, dtype=torch.float32)
+        feature_vector = np.concatenate([weather_features, date.month])
+        feature_vector = torch.tensor((feature_vector - self.mean) / self.std, dtype=torch.float32)
         label = torch.tensor(int(damage), dtype=torch.int64)
 
         return feature_vector, label
@@ -81,6 +81,7 @@ class StormDamageDataset(Dataset):
 
             if weather_features is not None:
                 features.append(weather_features)
+            features.append(date.month)
 
         feature_matrix = np.stack(features)
         mean = feature_matrix.mean(axis=0)
