@@ -19,7 +19,7 @@ config = wandb.config
 # ---------- Initialize Model ----------
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"RUNNING ON: {DEVICE}")
-model = Model(input_size=config.timespan*4, hidden_size=config.hidden_size, output_size=config.output_size).to(DEVICE)
+model = Model(input_size=config.timespan*4 +1, hidden_size=config.hidden_size, output_size=config.output_size).to(DEVICE)
 
 
 
@@ -37,7 +37,7 @@ def train_one_epoch(model, dataloader, criterion, optimizer, device):
         outputs = model(inputs)
         loss = criterion(outputs, labels)
         loss.backward()
-        torch.nn.utils.clip_grad_value_(model.parameters(), clip_value=config.gradient_clipping)
+        #torch.nn.utils.clip_grad_value_(model.parameters(), clip_value=config.gradient_clipping)
         optimizer.step()
 
         running_loss += loss.item()
