@@ -80,8 +80,8 @@ class StormDamageDataset(Dataset):
             weather_features = self._get_weather_features(normalized_municipality, date)
 
             if weather_features is not None:
-                features.append(weather_features)
-            features.append(date.month)
+                full_feature_vector = np.concatenate([weather_features, [date.month]])
+                features.append(full_feature_vector)
 
         feature_matrix = np.stack(features)
         mean = feature_matrix.mean(axis=0)
