@@ -11,11 +11,11 @@ parameters:
     max: 1.0
   hidden_size:
     values: [64, 128, 256]
-  input_size:
-    values: [28]
   output_size:
     values: [10]
   epochs:
     values: [2,4,8,10]
   gradient_clipping:
     values: [0.5, 1.0, 2.0]
+  timespan:
+    values: [21,28, 35]
