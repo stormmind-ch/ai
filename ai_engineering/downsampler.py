@@ -8,13 +8,18 @@ class RandomDownsampler():
 
     def downsample_majority_class(self, ratio: float):
         train_indices = self.dataset.train_indices
-        train_labels = [self.dataset[i][1] for i in train_indices]
+        labels = self.dataset.damages
 
+        majority_indices = []
+        minority_indices = []
+        for i in train_indices:
+            if labels[i] == 0.0:
+                majority_indices.append(i)
+            else:
+                minority_indices.append(i)
 
-        majority_indices = [idx for idx, label in zip(train_indices, train_labels) if label == 0.0]
-        minority_indices = [idx for idx, label in zip(train_indices, train_labels) if label != 0.0]
-
-        downsampled_majority_indices = random.sample(majority_indices, int(ratio * len(majority_indices)))
+        sample_size = int(ratio * len(majority_indices))
+        downsampled_majority_indices = random.sample(majority_indices, sample_size)
 
         final_train_indices = downsampled_majority_indices + minority_indices
         random.shuffle(final_train_indices)
