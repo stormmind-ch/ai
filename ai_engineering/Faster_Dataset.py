@@ -14,7 +14,7 @@ def normalize_text(text):
 
 
 class StormDamageDataset(Dataset):
-    def __init__(self, main_data_path: str, weather_data_dir: str, timespan: int, start_train: str, start_val: str, start_test: str):
+    def __init__(self, main_data_path: str, weather_data_dir: str, timespan: int, start_train: str, start_val: str, start_test: str, downsampling_rate:float=None):
         """
         Args:
             main_data_path (str): Path to the main dataset CSV file.
@@ -23,7 +23,7 @@ class StormDamageDataset(Dataset):
         """
         self.weather_data_dir = weather_data_dir
         self.timespan = timespan
-        self.municipalities, self.dates, self.damages = self._load_main_dataset_to_numpy(main_data_path)
+        self.municipalities, self.dates, self.damages = self._load_main_dataset_to_numpy(main_data_path, downsampling_rate)
         self.total_rows = len(self.municipalities)
         self.weather_cache = self._preload_weather_data()
         date_objs = np.array([datetime.strptime(d, "%Y-%m-%d") for d in self.dates])
@@ -63,11 +63,23 @@ class StormDamageDataset(Dataset):
 
         return feature_vector, label
 
-    def _load_main_dataset_to_numpy(self, main_data_path):
+    def _load_main_dataset_to_numpy(self, main_data_path, downsampling_majority_ratio=None):
         df = pl.read_csv(main_data_path)
+
+        if downsampling_majority_ratio is not None:
+            majority_df = df.filter(pl.col("combination_damage_mainprocess") == 0.0)
+            minority_df = df.filter(pl.col("combination_damage_mainprocess") != 0.0)
+            sample_size = int(downsampling_majority_ratio * majority_df.height)
+
+            downsampled_majority_df = majority_df.sample(n=sample_size, with_replacement=False, shuffle=True)
+
+            df = pl.concat([downsampled_majority_df, minority_df]).sort("Date")
+
+        # Convert to NumPy
         municipalities = df["Municipality"].to_numpy()
         dates = df["Date"].to_numpy()
         damages = df["combination_damage_mainprocess"].to_numpy()
+        df.clear()
         return municipalities, dates, damages
 
     def _compute_normalization_stats(self, indices):
