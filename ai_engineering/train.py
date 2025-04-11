@@ -69,9 +69,9 @@ def validate(model, dataloader, criterion, device):
 
     avg_loss = running_loss / len(dataloader)
     accuracy = 100 * (torch.tensor(all_preds) == torch.tensor(all_labels)).sum().item() / len(all_labels)
-    precision = precision_score(all_labels, all_preds, average='weighted', zero_division=0)
-    recall = recall_score(all_labels, all_preds, average='weighted', zero_division=0)
-    f1 = f1_score(all_labels, all_preds, average='weighted', zero_division=0)
+    precision = precision_score(all_labels, all_preds, average='macro', zero_division=0)
+    recall = recall_score(all_labels, all_preds, average='macro', zero_division=0)
+    f1 = f1_score(all_labels, all_preds, average='macro', zero_division=0)
 
     return avg_loss, accuracy, precision, recall, f1, all_labels, all_preds
 
@@ -87,6 +87,7 @@ def train(model, train_loader, val_loader, criterion, optimizer, epochs, device)
             "train_accuracy": train_accuracy,
             "val_loss": val_loss,
             "val_accuracy": val_accuracy,
+            "val_f1" : f1,
             "confusion_matrix": wandb.plot.confusion_matrix(probs=None,
                         y_true=all_labels, preds=all_preds,
                         class_names=[i for i in range(config.output_size)])
@@ -114,7 +115,9 @@ def main():
     test_loader = DataLoader(test_data, batch_size=config.batch_size, pin_memory=True, num_workers=4)
 
     # Train the model
-    criterion = nn.CrossEntropyLoss(weight=compute_class_weights(dataset.damages).to(DEVICE))
+    class_weights = config.class_weights
+    class_weights = torch.tensor(class_weights).to(DEVICE)
+    criterion = nn.CrossEntropyLoss(weight=class_weights)
     optimizer = optim.Adam(model.parameters(), lr=config.learning_rate)
     train(model, train_loader, val_loader, criterion, optimizer, config.epochs, DEVICE)
     test_loss, test_accuracy, prec, rec, f1, all_labels, all_preds = validate(model, test_loader, criterion, DEVICE)
