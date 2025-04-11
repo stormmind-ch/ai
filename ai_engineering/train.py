@@ -105,8 +105,7 @@ def main():
     dataset = StormDamageDataset('../Ressources/main_data_combined.csv',
                                  '../Ressources/weather_data2', config.timespan, '1972-01-01', '2002-01-01', '2012-01-01')
 
-    downsampler = RandomDownsampler(dataset)
-    train_data =  downsampler.downsample_majority_class(config.downsample_ratio)
+    train_data =  torch.utils.data.Subset(dataset, dataset.train_indices)
     val_data = torch.utils.data.Subset(dataset, dataset.val_indices)
     test_data = torch.utils.data.Subset(dataset, dataset.test_indices)
 
