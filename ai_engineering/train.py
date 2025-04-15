@@ -5,11 +5,9 @@ import torch.optim as optim
 import wandb
 from tqdm import tqdm, trange
 from model_1 import Model
-from Faster_Dataset import StormDamageDataset
+from StormDamageDataset import StormDamageDataset
 from torch.utils.data import DataLoader, random_split
 from sklearn.metrics import precision_score, recall_score, f1_score
-from compute_class_weights import compute_class_weights
-from downsampler import RandomDownsampler
 # ---------- WandB Initialization ----------
 wandb.init(project="stormmind.ai")
 

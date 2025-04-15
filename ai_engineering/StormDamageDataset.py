@@ -13,6 +13,33 @@ def normalize_text(text):
     return unicodedata.normalize("NFKC", text).replace("−", "-").strip().lower()
 
 
+def date_features_sincos_normalisation(date: Date):
+    month = date.month
+    month_sin = np.sin(2 * np.pi * month) / 12.0
+    month_cos = np.cos(2 * np.pi * month) / 12.0
+    return np.array([month_sin, month_cos])
+
+
+def _load_main_dataset_to_numpy(main_data_path, downsampling_majority_ratio=None):
+    df = pl.read_csv(main_data_path)
+
+    if downsampling_majority_ratio is not None:
+        majority_df = df.filter(pl.col("combination_damage_mainprocess") == 0.0)
+        minority_df = df.filter(pl.col("combination_damage_mainprocess") != 0.0)
+        sample_size = int(downsampling_majority_ratio * majority_df.height)
+
+        downsampled_majority_df = majority_df.sample(n=sample_size, with_replacement=False, shuffle=True)
+
+        df = pl.concat([downsampled_majority_df, minority_df]).sort("Date")
+
+    # Convert to NumPy
+    municipalities = df["Municipality"].to_numpy()
+    dates = df["Date"].to_numpy()
+    damages = df["combination_damage_mainprocess"].to_numpy()
+    df.clear()
+    return municipalities, dates, damages
+
+
 class StormDamageDataset(Dataset):
     def __init__(self, main_data_path: str, weather_data_dir: str, timespan: int, start_train: str, start_val: str, start_test: str, downsampling_rate:float=None):
         """
@@ -27,7 +54,7 @@ class StormDamageDataset(Dataset):
         """
         self.weather_data_dir = weather_data_dir
         self.timespan = timespan
-        self.municipalities, self.dates, self.damages = self._load_main_dataset_to_numpy(main_data_path, downsampling_rate)
+        self.municipalities, self.dates, self.damages = _load_main_dataset_to_numpy(main_data_path, downsampling_rate)
         self.total_rows = len(self.municipalities)
         self.weather_cache = self._preload_weather_data()
         date_objs = np.array([datetime.strptime(d, "%Y-%m-%d") for d in self.dates])
@@ -60,34 +87,15 @@ class StormDamageDataset(Dataset):
         if np.any(np.isnan(weather_features)):
             raise ValueError(f"NaN values in the loaded weather features: {weather_features}")
 
-        date_features = np.array([date.month])
+        date_features = date_features_sincos_normalisation(date)
+        weather_features = self.weather_features_zscore_normalisation(weather_features)
         feature_vector = np.concatenate([weather_features, date_features])
-        feature_vector = self.normalize_features(feature_vector)
         label = torch.tensor(int(damage), dtype=torch.int64)
 
         return feature_vector, label
 
-    def normalize_features(self, features):
+    def weather_features_zscore_normalisation(self, features):
         return torch.tensor((features - self.mean) / self.std, dtype=torch.float32)
-
-    def _load_main_dataset_to_numpy(self, main_data_path, downsampling_majority_ratio=None):
-        df = pl.read_csv(main_data_path)
-
-        if downsampling_majority_ratio is not None:
-            majority_df = df.filter(pl.col("combination_damage_mainprocess") == 0.0)
-            minority_df = df.filter(pl.col("combination_damage_mainprocess") != 0.0)
-            sample_size = int(downsampling_majority_ratio * majority_df.height)
-
-            downsampled_majority_df = majority_df.sample(n=sample_size, with_replacement=False, shuffle=True)
-
-            df = pl.concat([downsampled_majority_df, minority_df]).sort("Date")
-
-        # Convert to NumPy
-        municipalities = df["Municipality"].to_numpy()
-        dates = df["Date"].to_numpy()
-        damages = df["combination_damage_mainprocess"].to_numpy()
-        df.clear()
-        return municipalities, dates, damages
 
     def _compute_normalization_stats(self, indices):
         features = []
@@ -98,11 +106,9 @@ class StormDamageDataset(Dataset):
             date = Date.fromisoformat(date_str)
             normalized_municipality = normalize_text(municipality)
             weather_features = self._get_weather_features(normalized_municipality, date)
-            date_features = np.array([date.month])
 
             if weather_features is not None:
-                full_feature_vector = np.concatenate([weather_features, date_features])
-                features.append(full_feature_vector)
+                features.append(weather_features)
 
         feature_matrix = np.stack(features)
         mean = feature_matrix.mean(axis=0)

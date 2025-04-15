@@ -1,12 +1,13 @@
 import pandas as pd
 import unicodedata
 import torch
-from ai_engineering.Faster_Dataset import StormDamageDataset
+from ai_engineering.StormDamageDataset import StormDamageDataset
+import numpy as np
 
 def normalize_text(text):
     return unicodedata.normalize("NFKC", text).replace("−", "-").strip().lower()
 
-MAIN_DATA_PATH = "../../Ressources/main_data_combined_test.csv"
+MAIN_DATA_PATH = "main_data_combined_test.csv"
 WEATHER_DATA_DIR  = "../../Ressources/weather_data4"
 TIMESPAN = 3
 
@@ -49,5 +50,12 @@ def test_dataset_length():
 
 def test_weather_data_accuracy():
     dataset = StormDamageDataset(MAIN_DATA_PATH, WEATHER_DATA_DIR, TIMESPAN, '1972-01-01', '2002-01-01', '2012-01-01')
-    data = dataset.__getitem__(0)
-    print(data)
+    data, _ = dataset.__getitem__(0)
+    data = data[:TIMESPAN * 4]
+    goal = [8.5,9.3,9.8, 25730.62,22622.33,23916.93, 0.00,0.00,0.30, 0.00,0.00,0.00]
+    goal = zscore(np.array(goal), dataset.mean, dataset.std)
+    assert np.allclose(data, goal, rtol=0.1)
+
+
+def zscore(x, mean, std):
+    return (x - mean) / std
