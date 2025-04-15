@@ -85,11 +85,13 @@ class StormDamageDataset(Dataset):
         if weather_features is None:
             raise ValueError(f"No weather features loaded for {municipality} and {date}")
         if np.any(np.isnan(weather_features)):
-            raise ValueError(f"NaN values in the loaded weather features: {weather_features}")
+            print(f"[Warning] NaNs found in weather features, replacing with 0: for {municipality}")
+            weather_features = np.nan_to_num(weather_features, nan=0.0)
 
         date_features = date_features_sincos_normalisation(date)
         weather_features = self.weather_features_zscore_normalisation(weather_features)
         feature_vector = np.concatenate([weather_features, date_features])
+        feature_vector = torch.tensor(feature_vector, dtype=torch.float32)
         label = torch.tensor(int(damage), dtype=torch.int64)
 
         return feature_vector, label
