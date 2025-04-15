@@ -6,8 +6,8 @@ from ai_engineering.Faster_Dataset import StormDamageDataset
 def normalize_text(text):
     return unicodedata.normalize("NFKC", text).replace("−", "-").strip().lower()
 
-MAIN_DATA_PATH = "/Users/nilsgamperli/Documents/StormMindData/main_data_combined.csv"
-WEATHER_DATA_DIR  = "/Users/nilsgamperli/Downloads/weather_data2"
+MAIN_DATA_PATH = "../../Ressources/main_data_combined_test.csv"
+WEATHER_DATA_DIR  = "../../Ressources/weather_data4"
 TIMESPAN = 3
 
 
@@ -32,10 +32,22 @@ def test_train():
     """
     Tests if each row of the main dataset can be retrieved. Note that in case of an Error, the Dataset throws an Exception.
     """
-    dataset = StormDamageDataset(MAIN_DATA_PATH, WEATHER_DATA_DIR, TIMESPAN)
+    dataset = StormDamageDataset(MAIN_DATA_PATH, WEATHER_DATA_DIR, TIMESPAN, '1972-01-01', '2002-01-01', '2012-01-01')
     max_idx = 52_231_987
     expected_feature_size = 4 * TIMESPAN
 
     for i in range(49978607,max_idx):
         features, label = dataset.__getitem__(i)
         assert features.size() == torch.Size([expected_feature_size]), f"Feature error on index {i}"
+
+def test_dataset_length():
+    length_dataset = len(pd.read_csv(MAIN_DATA_PATH))
+    dataset = StormDamageDataset(MAIN_DATA_PATH, WEATHER_DATA_DIR, TIMESPAN, '1972-01-01', '2002-01-01', '2012-01-01')
+    assert len(dataset.damages) == length_dataset
+    assert len(dataset.municipalities) == length_dataset
+    assert len(dataset.damages) == length_dataset
+
+def test_weather_data_accuracy():
+    dataset = StormDamageDataset(MAIN_DATA_PATH, WEATHER_DATA_DIR, TIMESPAN, '1972-01-01', '2002-01-01', '2012-01-01')
+    data = dataset.__getitem__(0)
+    print(data)
