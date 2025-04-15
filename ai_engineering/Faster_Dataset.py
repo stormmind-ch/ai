@@ -20,6 +20,10 @@ class StormDamageDataset(Dataset):
             main_data_path (str): Path to the main dataset CSV file.
             weather_data_dir (str): Directory containing weather data files for each municipality.
             timespan (int): Number of past days to consider for weather data.
+            start_train (str): start date of the training data as a string
+            start_val (str): start date of the val data as a string
+            start_test (str): start date of the test data as a string
+            downsampling_rate: the ratio which should stay during the down sampling of the majority (no damage) class.
         """
         self.weather_data_dir = weather_data_dir
         self.timespan = timespan
@@ -58,10 +62,13 @@ class StormDamageDataset(Dataset):
 
         date_features = np.array([date.month])
         feature_vector = np.concatenate([weather_features, date_features])
-        feature_vector = torch.tensor((feature_vector - self.mean) / self.std, dtype=torch.float32)
+        feature_vector = self.normalize_features(feature_vector)
         label = torch.tensor(int(damage), dtype=torch.int64)
 
         return feature_vector, label
+
+    def normalize_features(self, features):
+        return torch.tensor((features - self.mean) / self.std, dtype=torch.float32)
 
     def _load_main_dataset_to_numpy(self, main_data_path, downsampling_majority_ratio=None):
         df = pl.read_csv(main_data_path)
@@ -133,7 +140,7 @@ class StormDamageDataset(Dataset):
         """
         first_date = Date(1972, 1, 1)
         delta = date - first_date
-        end_date = delta.days
+        end_date = delta.days + 1
         start_date = end_date - self.timespan
         municipality_normalized = normalize_text(municipality)
 
