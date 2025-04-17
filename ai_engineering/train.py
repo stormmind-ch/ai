@@ -17,7 +17,7 @@ config = wandb.config
 # ---------- Initialize Model ----------
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"RUNNING ON: {DEVICE}")
-model = Model(input_size=config.timespan*4 +2, hidden_size=config.hidden_size, output_size=config.output_size).to(DEVICE)
+model = Model(input_size=config.timespan*4 +2 + 2, hidden_size=config.hidden_size, output_size=config.output_size).to(DEVICE)
 
 
 
