@@ -102,7 +102,7 @@ def train(model, train_loader, val_loader, criterion, optimizer, epochs, device)
 # ---------- Main Function ----------
 def main():
     dataset = StormDamageDataset('../Ressources/main_data_combined.csv',
-                                 '../Ressources/weather_data4', config.timespan, '1972-01-01', '2002-01-01', '2012-01-01', config.downsample_ratio)
+                                 '../Ressources/weather_data4', config.timespan, '1972-01-01', '2002-01-01', '2012-01-01', '../Ressources/municipalities_coordinates_newest.csv' , config.downsample_ratio)
 
     train_data =  torch.utils.data.Subset(dataset, dataset.train_indices)
     val_data = torch.utils.data.Subset(dataset, dataset.val_indices)

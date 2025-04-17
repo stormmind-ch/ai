@@ -19,8 +19,23 @@ def date_features_sincos_normalisation(date: Date):
     month_cos = np.cos(2 * np.pi * month) / 12.0
     return np.array([month_sin, month_cos])
 
+def preload_coordinates(municipality_coordinates_file: str):
+    df = pl.read_csv(municipality_coordinates_file)
+    min_lat = df.select(pl.min("Latitude")).item()
+    max_lat = df.select(pl.max("Latitude")).item()
+    min_long = df.select(pl.min("Longitude")).item()
+    max_long = df.select(pl.max("Longitude")).item()
+    dic = {}
+    for row in df.iter_rows():
+        lat_norm = (row[1] - min_lat) / (max_lat - min_lat)
+        long_norm = (row[2] - min_long) / (max_long - min_long)
+        dic[row[0]] = (lat_norm, long_norm)
+    df.clear()
+    return dic
 
-def _load_main_dataset_to_numpy(main_data_path, downsampling_majority_ratio=None):
+
+
+def load_main_dataset_to_numpy(main_data_path, downsampling_majority_ratio=None):
     df = pl.read_csv(main_data_path)
 
     if downsampling_majority_ratio is not None:
@@ -41,7 +56,7 @@ def _load_main_dataset_to_numpy(main_data_path, downsampling_majority_ratio=None
 
 
 class StormDamageDataset(Dataset):
-    def __init__(self, main_data_path: str, weather_data_dir: str, timespan: int, start_train: str, start_val: str, start_test: str, downsampling_rate:float=None):
+    def __init__(self, main_data_path: str, weather_data_dir: str, timespan: int, start_train: str, start_val: str, start_test: str,municipality_coordinates_file : str, downsampling_rate:float=None):
         """
         Args:
             main_data_path (str): Path to the main dataset CSV file.
@@ -52,9 +67,10 @@ class StormDamageDataset(Dataset):
             start_test (str): start date of the test data as a string
             downsampling_rate: the ratio which should stay during the down sampling of the majority (no damage) class.
         """
+        self.municipalities_coordinates = preload_coordinates(municipality_coordinates_file)
         self.weather_data_dir = weather_data_dir
         self.timespan = timespan
-        self.municipalities, self.dates, self.damages = _load_main_dataset_to_numpy(main_data_path, downsampling_rate)
+        self.municipalities, self.dates, self.damages = load_main_dataset_to_numpy(main_data_path, downsampling_rate)
         self.total_rows = len(self.municipalities)
         self.weather_cache = self._preload_weather_data()
         date_objs = np.array([datetime.strptime(d, "%Y-%m-%d") for d in self.dates])
@@ -81,6 +97,7 @@ class StormDamageDataset(Dataset):
         normalized_municipality = normalize_text(municipality)
         date = Date.fromisoformat(date_str)
         weather_features = self._get_weather_features(normalized_municipality, date)
+        coords = np.array(self.municipalities_coordinates[municipality])
 
         if weather_features is None:
             raise ValueError(f"No weather features loaded for {municipality} and {date}")
@@ -90,7 +107,7 @@ class StormDamageDataset(Dataset):
 
         date_features = date_features_sincos_normalisation(date)
         weather_features = self.weather_features_zscore_normalisation(weather_features)
-        feature_vector = np.concatenate([weather_features, date_features])
+        feature_vector = np.concatenate([weather_features, date_features, coords])
         feature_vector = torch.tensor(feature_vector, dtype=torch.float32)
         label = torch.tensor(int(damage), dtype=torch.int64)
 
@@ -100,6 +117,9 @@ class StormDamageDataset(Dataset):
         return torch.tensor((features - self.mean) / self.std, dtype=torch.float32)
 
     def _compute_normalization_stats(self, indices):
+        if len(indices) == 0:
+            raise ValueError("Indices must have at least 1 value")
+
         features = []
 
         for idx in indices:
