@@ -22,7 +22,7 @@ parameters:
     values: [21,28, 35]
   downsample_ratio:
     min: 0.01
-    max: 1
+    max: 1.0
   class_weights:
    values:
     - [1.00048183e-01, 4.49887916e+03, 1.51616798e+03,
