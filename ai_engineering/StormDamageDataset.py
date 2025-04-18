@@ -7,10 +7,8 @@ from datetime import date as Date
 import unicodedata
 import numpy as np
 from datetime import datetime
+from ai_engineering.datasets.dataset_utils import normalize_text, preload_weather_data
 
-
-def normalize_text(text):
-    return unicodedata.normalize("NFKC", text).replace("−", "-").strip().lower()
 
 
 def date_features_sincos_normalisation(date: Date):
@@ -72,7 +70,7 @@ class StormDamageDataset(Dataset):
         self.timespan = timespan
         self.municipalities, self.dates, self.damages = load_main_dataset_to_numpy(main_data_path, downsampling_rate)
         self.total_rows = len(self.municipalities)
-        self.weather_cache = self._preload_weather_data()
+        self.weather_cache = preload_weather_data(weather_data_dir)
         date_objs = np.array([datetime.strptime(d, "%Y-%m-%d") for d in self.dates])
 
 
@@ -137,30 +135,6 @@ class StormDamageDataset(Dataset):
         std = feature_matrix.std(axis=0) + 1e-8  # Add epsilon to avoid division by zero
         return mean, std
 
-    def _preload_weather_data(self):
-        """
-        Preloads all weather data into a dictionary for fast lookup.
-        """
-        weather_cache = {}
-
-        files = [f for f in os.listdir(self.weather_data_dir) if f.endswith(".json")]
-        for file in files:
-            if file.endswith(".json"):
-                municipality = file.replace(".json", "")
-                municipality_normalized = normalize_text(municipality)
-                file_path = os.path.join(self.weather_data_dir, file)
-                with open(file_path, "rb") as f:
-                    try:
-                        raw_data = oj.loads(f.read())
-                        weather_cache[municipality_normalized] = {
-                            "temperature_2m_mean": np.array(raw_data["daily"]["temperature_2m_mean"], dtype=np.float32),
-                            "sunshine_duration": np.array(raw_data["daily"]["sunshine_duration"], dtype=np.float32),
-                            "rain_sum": np.array(raw_data["daily"]["rain_sum"], dtype=np.float32),
-                            "snowfall_sum": np.array(raw_data["daily"]["snowfall_sum"], dtype=np.float32),
-                        }
-                    except:
-                        raise Exception(f"Could not preload data for {municipality_normalized}")
-        return weather_cache
 
     def _get_weather_features(self, municipality: str, date: Date):
         """
