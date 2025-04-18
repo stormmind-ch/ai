@@ -1,19 +1,31 @@
 program: train.py
 method: bayes
 metric:
-  name: val_accuracy
+  name: val_f1
   goal: maximize
 parameters:
   batch_size:
-    values: [64, 128, 256]
+    values: [1,8,16,32,64,128,256]
   learning_rate:
     min: 0.0001
-    max: 0.1
+    max: 0.01
   hidden_size:
     values: [64, 128, 256]
-  input_size:
-    values: [28]
   output_size:
-    values: [16]
+    values: [10]
   epochs:
-    values: [2,4,8,10]
+    min: 10
+    max: 200
+  gradient_clipping:
+    values: [0.5, 1.0, 2.0]
+  timespan:
+    values: [21,28, 35]
+  downsample_ratio:
+    min: 0.01
+    max: 1.0
+  class_weights:
+   values:
+    - [1.00048183e-01, 4.49887916e+03, 1.51616798e+03,
+       2.89117608e+02, 1.24361874e+05, 2.20388131e+04,
+       3.66797662e+03, 9.32714054e+04, 7.56985319e+04,
+       7.97434916e+03]
