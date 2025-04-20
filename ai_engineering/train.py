@@ -1,25 +1,8 @@
 import sys
 import torch
-import torch.nn as nn
-import torch.optim as optim
 import wandb
 from tqdm import tqdm, trange
-from model_1 import Model
-from StormDamageDataset import StormDamageDataset
-from torch.utils.data import DataLoader, random_split
 from sklearn.metrics import precision_score, recall_score, f1_score
-# ---------- WandB Initialization ----------
-wandb.init(project="stormmind.ai")
-
-# Load hyperparameters from WandB
-config = wandb.config
-
-# ---------- Initialize Model ----------
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(f"RUNNING ON: {DEVICE}")
-model = Model(input_size=config.timespan*4 +2 + 2, hidden_size=config.hidden_size, output_size=config.output_size).to(DEVICE)
-
-
 
 # ---------- Train One Epoch ----------
 def train_one_epoch(model, dataloader, criterion, optimizer, device):
@@ -35,7 +18,6 @@ def train_one_epoch(model, dataloader, criterion, optimizer, device):
         outputs = model(inputs)
         loss = criterion(outputs, labels)
         loss.backward()
-        #torch.nn.utils.clip_grad_value_(model.parameters(), clip_value=config.gradient_clipping)
         optimizer.step()
 
         running_loss += loss.item()
@@ -98,40 +80,3 @@ def train(model, train_loader, val_loader, criterion, optimizer, epochs, device)
 
         print(f"Loss: {val_loss:.4f} | Acc: {val_accuracy:.2f}% | Precision: {prec:.4f} | Recall: {rec:.4f} | F1: {f1:.4f}")
 
-
-# ---------- Main Function ----------
-def main():
-    dataset = StormDamageDataset('../Ressources/main_data_combined.csv',
-                                 '../Ressources/weather_data4', config.timespan, '1972-01-01', '2002-01-01', '2012-01-01', '../Ressources/municipalities_coordinates_newest.csv' , config.downsample_ratio)
-
-    train_data =  torch.utils.data.Subset(dataset, dataset.train_indices)
-    val_data = torch.utils.data.Subset(dataset, dataset.val_indices)
-    test_data = torch.utils.data.Subset(dataset, dataset.test_indices)
-
-    train_loader = DataLoader(train_data, batch_size=config.batch_size, shuffle=True, pin_memory=True, num_workers=4)
-    val_loader = DataLoader(val_data, batch_size=config.batch_size, pin_memory=True, num_workers=4)
-    test_loader = DataLoader(test_data, batch_size=config.batch_size, pin_memory=True, num_workers=4)
-
-    # Train the model
-    class_weights = config.class_weights
-    class_weights = torch.tensor(class_weights).to(DEVICE)
-    criterion = nn.CrossEntropyLoss(weight=class_weights)
-    optimizer = optim.Adam(model.parameters(), lr=config.learning_rate)
-    train(model, train_loader, val_loader, criterion, optimizer, config.epochs, DEVICE)
-    test_loss, test_accuracy, prec, rec, f1, all_labels, all_preds = validate(model, test_loader, criterion, DEVICE)
-    wandb.log({
-        "test_loss": test_loss,
-        "test_accuracy": test_accuracy,
-        "test_precision" : rec,
-        "test_f1" : f1,
-        "test_confusion_matrix": wandb.plot.confusion_matrix(probs=None,
-                                                        y_true=all_labels, preds=all_preds,
-                                                        class_names=[i for i in range(config.output_size)])
-
-    })
-    myPath = f"models/hidden_size_{config.hidden_size}_batch_size_{config.batch_size}_learning_rate_{config.learning_rate}.pth"
-    torch.save(model.state_dict(), myPath)
-
-
-if __name__ == "__main__":
-    main()
