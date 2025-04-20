@@ -1,6 +1,6 @@
 import torch.nn as nn
 
-class Model(nn.Module):
+class VanillaNN(nn.Module):
     def __init__(self, input_size=28, hidden_size=128, output_size=9):
         super().__init__()
         self.net = nn.Sequential(

@@ -1,56 +1,10 @@
 from torch.utils.data import Dataset
 import torch
-import os
-import orjson as oj
-import polars as pl
 from datetime import date as Date
-import unicodedata
 import numpy as np
 from datetime import datetime
-from ai_engineering.datasets.dataset_utils import normalize_text, preload_weather_data
-
-
-
-def date_features_sincos_normalisation(date: Date):
-    month = date.month
-    month_sin = np.sin(2 * np.pi * month) / 12.0
-    month_cos = np.cos(2 * np.pi * month) / 12.0
-    return np.array([month_sin, month_cos])
-
-def preload_coordinates(municipality_coordinates_file: str):
-    df = pl.read_csv(municipality_coordinates_file)
-    min_lat = df.select(pl.min("Latitude")).item()
-    max_lat = df.select(pl.max("Latitude")).item()
-    min_long = df.select(pl.min("Longitude")).item()
-    max_long = df.select(pl.max("Longitude")).item()
-    dic = {}
-    for row in df.iter_rows():
-        lat_norm = (row[1] - min_lat) / (max_lat - min_lat)
-        long_norm = (row[2] - min_long) / (max_long - min_long)
-        dic[row[0]] = (lat_norm, long_norm)
-    df.clear()
-    return dic
-
-
-
-def load_main_dataset_to_numpy(main_data_path, downsampling_majority_ratio=None):
-    df = pl.read_csv(main_data_path)
-
-    if downsampling_majority_ratio is not None:
-        majority_df = df.filter(pl.col("combination_damage_mainprocess") == 0.0)
-        minority_df = df.filter(pl.col("combination_damage_mainprocess") != 0.0)
-        sample_size = int(downsampling_majority_ratio * majority_df.height)
-
-        downsampled_majority_df = majority_df.sample(n=sample_size, with_replacement=False, shuffle=True)
-
-        df = pl.concat([downsampled_majority_df, minority_df]).sort("Date")
-
-    # Convert to NumPy
-    municipalities = df["Municipality"].to_numpy()
-    dates = df["Date"].to_numpy()
-    damages = df["combination_damage_mainprocess"].to_numpy()
-    df.clear()
-    return municipalities, dates, damages
+from ai_engineering.datasets.utils.dataset_utils import normalize_text, preload_weather_data
+from utils.dataset_utils import load_main_dataset_to_numpy, preload_coordinates, date_features_sincos_normalisation, get_weather_features
 
 
 class StormDamageDataset(Dataset):
@@ -125,7 +79,7 @@ class StormDamageDataset(Dataset):
             date_str = self.dates[idx]
             date = Date.fromisoformat(date_str)
             normalized_municipality = normalize_text(municipality)
-            weather_features = self._get_weather_features(normalized_municipality, date)
+            weather_features = get_weather_features(normalized_municipality, date)
 
             if weather_features is not None:
                 features.append(weather_features)
@@ -135,24 +89,3 @@ class StormDamageDataset(Dataset):
         std = feature_matrix.std(axis=0) + 1e-8  # Add epsilon to avoid division by zero
         return mean, std
 
-
-    def _get_weather_features(self, municipality: str, date: Date):
-        """
-        Retrieves weather data from preloaded cache.
-        """
-        first_date = Date(1972, 1, 1)
-        delta = date - first_date
-        end_date = delta.days + 1
-        start_date = end_date - self.timespan
-        municipality_normalized = normalize_text(municipality)
-
-        if municipality_normalized not in self.weather_cache:
-            raise Exception(f"{municipality_normalized} does not exist in weather data cache")
-
-        data = self.weather_cache[municipality_normalized]
-        temperature_2m_mean = data['temperature_2m_mean'][start_date:end_date]
-        sunshine_duration = data['sunshine_duration'][start_date:end_date]
-        rain_sum = data['rain_sum'][start_date:end_date]
-        snowfall_sum = data['snowfall_sum'][start_date:end_date]
-
-        return np.concatenate([temperature_2m_mean, sunshine_duration, rain_sum, snowfall_sum])
