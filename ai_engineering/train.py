@@ -51,13 +51,13 @@ def train_one_epoch_regression(model, dataloader, criterion, optimizer, device):
 # ---------- Training Function ----------
 def train(model, train_loader, val_loader, criterion, optimizer, epochs, device):
     for epoch in trange(epochs, desc="Epochs", file=sys.stdout, dynamic_ncols=True):
-        train_loss, train_accuracy = train_one_epoch_regression(model, train_loader, criterion, optimizer, device)
+        train_loss, train_mae = train_one_epoch_regression(model, train_loader, criterion, optimizer, device)
         avg_loss, val_mse, val_mae, val_r2, all_labels_real, all_preds_real = validate_regression(model, val_loader, criterion, device)
 
         wandb.log({
             "epoch": epoch + 1,
             "train_loss": train_loss,
-            "train_accuracy": train_accuracy,
+            "train_mae": train_mae,
             "val_avg_loss": avg_loss,
             "val_mse": val_mse,
             "val_mae" : val_mae,
@@ -66,7 +66,7 @@ def train(model, train_loader, val_loader, criterion, optimizer, epochs, device)
 
 
         print(f"Epoch [{epoch + 1}/{epochs}] - "
-              f"Train Loss: {train_loss:.4f}, Train Accuracy: {train_accuracy:.2f}% -"
+              f"Train Loss: {train_loss:.4f}, Train Accuracy: {train_mae:.2f} -"
               f"Val Avg Loss: {avg_loss:.4f}, Val mse: {val_mse:.2f}, Val mae: {val_mae:.2f}, Val r2: {val_r2:.2f}")
 
 
