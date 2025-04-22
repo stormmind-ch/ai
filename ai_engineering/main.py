@@ -27,18 +27,22 @@ def main():
                                         '../Ressources/weather_data4',
                                           '../Ressources/municipalities_coordinates_newest.csv',
                                         'mean',6, 'train', 4,4,
-                                        grouping_calendar='weekly')
+                                        grouping_calendar='weekly',
+                                        damage_weights={0: 0, 1: 0.06, 2: 0.8, 3: 11.3})
     val_dataset = ClusteredStormDamageDataset('../Ressources/main_data_1972_2023.csv',
                                         '../Ressources/weather_data4',
                                           '../Ressources/municipalities_coordinates_newest.csv',
                                         'mean',6, 'val', 4,4,
-                                        grouping_calendar='weekly')
+                                        grouping_calendar='weekly',
+                                        damage_weights={0: 0, 1: 0.06, 2: 0.8, 3: 11.3})
 
     test_dataset = ClusteredStormDamageDataset('../Ressources/main_data_1972_2023.csv',
                                         '../Ressources/weather_data4',
                                           '../Ressources/municipalities_coordinates_newest.csv',
                                         'mean',6, 'test', 4,4,
-                                        grouping_calendar='weekly')
+                                        grouping_calendar='weekly',
+                                        damage_weights={0: 0, 1: 0.06, 2: 0.8, 3: 11.3})
+
 
     model = init_model('VanillaNN', 4, 128, 1)
 
