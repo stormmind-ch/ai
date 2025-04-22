@@ -14,6 +14,13 @@ def group_damages(date_cluster_damage: pl.DataFrame, damage_weights: dict[int, f
         date_cluster_damage = date_cluster_damage.with_columns(
             pl.col('extent_of_damage').map_elements(lambda x: damage_weights.get(int(x), 0.0), return_dtype=pl.Float64)
         )
+    else:
+        date_cluster_damage = date_cluster_damage.with_columns(
+            pl.when(pl.col('extent_of_damage') != 0.0)
+            .then(1.0)
+            .otherwise(0.0)
+            .alias('extent_of_damage')
+        )
 
     if grouping_calendar == 'monthly':
         grouped = _group_monthly(date_cluster_damage)
