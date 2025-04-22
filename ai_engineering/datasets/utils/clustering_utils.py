@@ -1,7 +1,7 @@
 import polars as pl
 import numpy as np
 import numpy.typing as npt
-from ai_engineering.datasets.utils.feature_utils import df_column_checker
+from datasets.utils.feature_utils import df_column_checker
 from sklearn.cluster import KMeans
 
 
