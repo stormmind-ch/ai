@@ -2,81 +2,71 @@ import sys
 import torch
 import wandb
 from tqdm import tqdm, trange
-from sklearn.metrics import precision_score, recall_score, f1_score
+from sklearn.metrics import precision_score, recall_score, f1_score, mean_absolute_error
+import numpy as np
+
+from validate import validate_regression
 
 # ---------- Train One Epoch ----------
-def train_one_epoch(model, dataloader, criterion, optimizer, device):
+def train_one_epoch_regression(model, dataloader, criterion, optimizer, device):
     model.train()
     running_loss = 0.0
-    correct = 0
-    total = 0
+    all_preds = []
+    all_labels = []
 
     for inputs, labels in tqdm(dataloader, desc="Training", unit="batch", file=sys.stdout, dynamic_ncols=True):
+        labels = torch.log1p(labels)
         inputs, labels = inputs.to(device), labels.to(device)
 
         optimizer.zero_grad()
-        outputs = model(inputs)
+        outputs = model(inputs).view(-1)  # flatten safely
         loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
 
         running_loss += loss.item()
-        _, predicted = torch.max(outputs, 1)
-        total += labels.size(0)
-        correct += (predicted == labels).sum().item()
+        all_preds.append(outputs.detach().cpu().numpy())
+        all_labels.append(labels.cpu().numpy())
 
-    return running_loss / len(dataloader), 100 * correct / total
+    # Flatten lists of arrays
+    all_preds = np.concatenate(all_preds)
+    all_labels = np.concatenate(all_labels)
+
+    # Avoid overflow, then the max value is 1e13. Should be enought
+    all_preds = np.clip(all_preds, a_min=None, a_max=30)
+    all_labels = np.clip(all_labels, a_min=None, a_max=30)
+
+    # Convert back to original scale
+    all_preds_real = np.expm1(all_preds)
+    all_labels_real = np.expm1(all_labels)
+
+    mae = mean_absolute_error(all_labels_real, all_preds_real)
+
+    return running_loss / len(dataloader), mae
 
 
-# ---------- Validate One Epoch ----------
-def validate(model, dataloader, criterion, device):
-    model.eval()
-    running_loss = 0.0
-    all_preds = []
-    all_labels = []
 
-    with torch.no_grad():
-        for inputs, labels in tqdm(dataloader, desc="Validating", unit="batch", file=sys.stdout, dynamic_ncols=True):
-            inputs, labels = inputs.to(device, non_blocking=True), labels.to(device, non_blocking=True)
 
-            outputs = model(inputs)
-            loss = criterion(outputs, labels)
-            running_loss += loss.item()
-
-            _, predicted = torch.max(outputs, 1)
-            all_preds.extend(predicted.cpu().numpy())
-            all_labels.extend(labels.cpu().numpy())
-
-    avg_loss = running_loss / len(dataloader)
-    accuracy = 100 * (torch.tensor(all_preds) == torch.tensor(all_labels)).sum().item() / len(all_labels)
-    precision = precision_score(all_labels, all_preds, average='macro', zero_division=0)
-    recall = recall_score(all_labels, all_preds, average='macro', zero_division=0)
-    f1 = f1_score(all_labels, all_preds, average='macro', zero_division=0)
-
-    return avg_loss, accuracy, precision, recall, f1, all_labels, all_preds
 
 # ---------- Training Function ----------
 def train(model, train_loader, val_loader, criterion, optimizer, epochs, device):
     for epoch in trange(epochs, desc="Epochs", file=sys.stdout, dynamic_ncols=True):
-        train_loss, train_accuracy = train_one_epoch(model, train_loader, criterion, optimizer, device)
-        val_loss, val_accuracy, prec, rec, f1, all_labels, all_preds = validate(model, val_loader, criterion, device)
+        train_loss, train_accuracy = train_one_epoch_regression(model, train_loader, criterion, optimizer, device)
+        avg_loss, val_mse, val_mae, val_r2, all_labels_real, all_preds_real = validate_regression(model, val_loader, criterion, device)
 
         wandb.log({
             "epoch": epoch + 1,
             "train_loss": train_loss,
             "train_accuracy": train_accuracy,
-            "val_loss": val_loss,
-            "val_accuracy": val_accuracy,
-            "val_f1" : f1,
-            "confusion_matrix": wandb.plot.confusion_matrix(probs=None,
-                        y_true=all_labels, preds=all_preds,
-                        class_names=[i for i in range(config.output_size)])
-
+            "val_avg_loss": avg_loss,
+            "val_mse": val_mse,
+            "val_mae" : val_mae,
+            "val_r2" : val_r2
         })
 
-        print(f"Epoch [{epoch + 1}/{epochs}] - "
-              f"Train Loss: {train_loss:.4f}, Train Accuracy: {train_accuracy:.2f}% - "
-              f"Val Loss: {val_loss:.4f}, Val Accuracy: {val_accuracy:.2f}%")
 
-        print(f"Loss: {val_loss:.4f} | Acc: {val_accuracy:.2f}% | Precision: {prec:.4f} | Recall: {rec:.4f} | F1: {f1:.4f}")
+        print(f"Epoch [{epoch + 1}/{epochs}] - "
+              f"Train Loss: {train_loss:.4f}, Train Accuracy: {train_accuracy:.2f}% -"
+              f"Val Avg Loss: {avg_loss:.4f}, Val mse: {val_mse:.2f}, Val mae: {val_mae:.2f}, Val r2: {val_r2:.2f}")
+
 

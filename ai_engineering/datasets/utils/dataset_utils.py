@@ -95,6 +95,8 @@ def get_weather_features(municipality: str, date: datetime.date, weather_data_ca
     delta = date - first_date
     end_date = delta.days + 1
     start_date = end_date - timespan
+    if start_date < 0:
+        start_date = 0
     municipality_normalized = normalize_text(municipality)
 
     if municipality_normalized not in weather_data_cache:
