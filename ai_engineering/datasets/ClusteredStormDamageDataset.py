@@ -3,9 +3,9 @@ import numpy as np
 import polars as pl
 import torch
 from torch.utils.data.dataset import  Dataset
-from ai_engineering.datasets.utils.dataset_utils import  preload_weather_data, merge_clusters_initial, normalize_text, get_weather_features
-from ai_engineering.datasets.utils.grouping_utils import group_damages
-from ai_engineering.datasets.utils.clustering_utils import make_clusters
+from datasets.utils.dataset_utils import preload_weather_data, merge_clusters_initial, normalize_text, get_weather_features
+from datasets.utils.grouping_utils import group_damages
+from datasets.utils.clustering_utils import make_clusters
 from calendar import monthrange
 
 

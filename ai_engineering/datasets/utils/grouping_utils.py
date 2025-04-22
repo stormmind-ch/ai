@@ -1,6 +1,6 @@
 import polars as pl
 from datetime import timedelta
-from ai_engineering.datasets.utils.feature_utils import df_column_checker
+from datasets.utils.feature_utils import df_column_checker
 
 def group_damages(date_cluster_damage: pl.DataFrame, damage_weights: dict[int, float] = None, n: int = None, grouping_calendar: str = None) -> pl.DataFrame:
     df_column_checker(date_cluster_damage, {'Municipality', 'Date', 'Center_Municipality'})
