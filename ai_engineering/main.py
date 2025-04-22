@@ -45,7 +45,7 @@ def main():
 
 
     model = init_model('VanillaNN', 4, config.hidden_size, 1)
-
+    model.to(device)
     train_loader, val_loader, test_loader = DataLoader(train_dataset), DataLoader(val_dataset), DataLoader(test_dataset)
     criterion = nn.L1Loss()
     optimizer = Adam(model.parameters(), lr=config.learning_rate)
