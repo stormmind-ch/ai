@@ -19,7 +19,7 @@ def plot_scatter_matrix(dataset, feature_names=None, num_clusters = None):
         feature_names = [f'feat_{i}' for i in range(n_features)]
 
     # Setup figure with colorbar space
-    fig = plt.figure()
+    fig = plt.figure(figsize=(10,10))
     gs = gridspec.GridSpec(n_features, n_features + 1, width_ratios=[1]*n_features + [0.05], wspace=0.1, hspace=0.1)
 
     axes = np.empty((n_features, n_features), dtype=object)
@@ -82,12 +82,12 @@ def plot_scatter_matrix(dataset, feature_names=None, num_clusters = None):
 
 
 
-test_dataset = ClusteredStormDamageDataset('../../Ressources/main_data_1972_2023.csv',
+dataset = ClusteredStormDamageDataset('../../Ressources/main_data_1972_2023.csv',
                                            '../../Ressources/weather_data4',
                                            '../../Ressources/municipalities_coordinates_newest.csv',
-                                           'mean', 20, 'test', 4, 4,
+                                           'mean', 20,
                                            grouping_calendar='weekly',
                                            damage_weights={0: 0, 1: 0.06, 2: 0.8, 3: 11.3})
 
-plot_scatter_matrix(test_dataset, feature_names=['Temperature', 'Sunshine', 'Rain', 'Snow'], num_clusters=20 )
+plot_scatter_matrix(dataset, feature_names=['Temperature', 'Sunshine', 'Rain', 'Snow'], num_clusters=20 )
 
