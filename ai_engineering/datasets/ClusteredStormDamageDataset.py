@@ -37,7 +37,7 @@ def split_dataframe_by_time(df: pl.DataFrame, val_years: int, test_years: int) -
 
 class ClusteredStormDamageDataset(Dataset):
     def __init__(self, main_data_path : str, weather_data_dir: str, municipality_coordinates_path:str,
-                 agg_method: str, k: int, split: str, val_years:int = 2, test_years: int = 2,
+                 agg_method: str, k: int, split: str = None, val_years:int = 2, test_years: int = 2,
                  damage_weights:dict[int:float]=None, n:int = None, grouping_calendar: str = None):
         """
         Args:
@@ -61,7 +61,7 @@ class ClusteredStormDamageDataset(Dataset):
         elif split == 'test':
             self.dataframe = test_df
         else:
-            raise ValueError(f"Unknown split type: {split}")
+            self.dataframe = self.dataframe
 
     def __len__(self):
         return self.dataframe.height

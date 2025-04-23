@@ -56,7 +56,9 @@ def main():
         "avg_loss_test": avg_loss_test,
         "rmse_test": rmse_test,
         "mae_test": mae_test,
-        "r2_test": r2_test
+        "r2_test": r2_test,
+        "test_true_labels": all_labels_real_test,
+        "test_pred_labels": all_preds_real_test
     })
 
 if __name__ == "__main__":
