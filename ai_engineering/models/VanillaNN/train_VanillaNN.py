@@ -5,7 +5,7 @@ from tqdm import tqdm, trange
 from sklearn.metrics import precision_score, recall_score, f1_score, mean_absolute_error
 import numpy as np
 
-from validate import validate_regression
+from models.VanillaNN.validate_VanillaNN import validate
 
 # ---------- Train One Epoch ----------
 def train_one_epoch_regression(model, dataloader, criterion, optimizer, device):
@@ -52,7 +52,7 @@ def train_one_epoch_regression(model, dataloader, criterion, optimizer, device):
 def train(model, train_loader, val_loader, criterion, optimizer, epochs, device):
     for epoch in trange(epochs, desc="Epochs", file=sys.stdout, dynamic_ncols=True):
         train_loss, train_mae = train_one_epoch_regression(model, train_loader, criterion, optimizer, device)
-        avg_loss, val_mse, val_mae, val_r2, all_labels_real, all_preds_real = validate_regression(model, val_loader, criterion, device)
+        avg_loss, val_mse, val_mae, val_r2, all_labels_real, all_preds_real = validate(model, val_loader, criterion, device)
 
         wandb.log({
             "epoch": epoch + 1,

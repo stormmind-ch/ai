@@ -4,7 +4,7 @@ from sklearn.metrics import precision_score, recall_score, f1_score, mean_square
 import torch
 import numpy as np
 
-def validate_regression(model, dataloader, criterion, device):
+def validate(model, dataloader, criterion, device):
     model.eval()
     running_loss = 0.0
     all_preds = []

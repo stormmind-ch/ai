@@ -1,4 +1,4 @@
-from train import train, validate_regression
+from models.LSTM.train_LSTM import train_and_validate
 from datasets.ClusteredStormDamageDataset import ClusteredStormDamageDataset
 import torch
 from torch.optim import Adam
@@ -23,43 +23,21 @@ def main():
     config = init_wandb()
     device = init_device()
 
-    train_dataset = ClusteredStormDamageDataset('../Ressources/main_data_1972_2023.csv',
+    dataset = ClusteredStormDamageDataset('../Ressources/main_data_1972_2023.csv',
                                         '../Ressources/weather_data4',
-                                          '../Ressources/municipalities_coordinates_newest.csv',
-                                        config.agg_method,config.clusters, 'train', 4,4,
-                                        grouping_calendar='weekly',
-                                        damage_weights={0: 0, 1: 0.06, 2: 0.8, 3: 11.3})
-    val_dataset = ClusteredStormDamageDataset('../Ressources/main_data_1972_2023.csv',
-                                        '../Ressources/weather_data4',
-                                          '../Ressources/municipalities_coordinates_newest.csv',
-                                        config.agg_method, config.clusters, 'val', 4,4,
-                                        grouping_calendar='weekly',
-                                        damage_weights={0: 0, 1: 0.06, 2: 0.8, 3: 11.3})
-
-    test_dataset = ClusteredStormDamageDataset('../Ressources/main_data_1972_2023.csv',
-                                        '../Ressources/weather_data4',
-                                          '../Ressources/municipalities_coordinates_newest.csv',
-                                        config.agg_method,config.clusters, 'test', 4,4,
+                                        '../Ressources/municipalities_coordinates_newest.csv',
+                                        k=12,
                                         grouping_calendar='weekly',
                                         damage_weights={0: 0, 1: 0.06, 2: 0.8, 3: 11.3})
 
 
-    model = init_model('VanillaNN', 4, config.hidden_size, 1)
+    model = init_model('LSTM', 4, 64, 1)
     model.to(device)
-    train_loader, val_loader, test_loader = DataLoader(train_dataset), DataLoader(val_dataset), DataLoader(test_dataset)
-    criterion = nn.L1Loss()
-    optimizer = Adam(model.parameters(), lr=config.learning_rate)
-    train(model, train_loader, val_loader, criterion, optimizer,config.epochs, device)
-    avg_loss_test, rmse_test, mae_test, r2_test, all_labels_real_test, all_preds_real_test = validate_regression(model, test_loader, criterion, device)
 
-    wandb.log({
-        "avg_loss_test": avg_loss_test,
-        "rmse_test": rmse_test,
-        "mae_test": mae_test,
-        "r2_test": r2_test,
-        "test_true_labels": all_labels_real_test,
-        "test_pred_labels": all_preds_real_test
-    })
+    criterion = nn.L1Loss()
+    optimizer = Adam(model.parameters(), lr=0.001)
+    train_and_validate(model, dataset, criterion, optimizer, 1, device, 10)
+
 
 if __name__ == "__main__":
     main()
