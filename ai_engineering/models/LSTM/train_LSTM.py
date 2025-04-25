@@ -17,7 +17,7 @@ def train_one_split(model, dataloader, criterion, optimizer, device):
     all_preds = []
     all_labels = []
 
-    for inputs, labels in tqdm(dataloader, desc="Training", unit="batch", file=sys.stdout, dynamic_ncols=True):
+    for inputs, labels in tqdm(dataloader, desc="Training on single Split", unit="batch", file=sys.stdout, dynamic_ncols=True):
         labels = torch.log1p(labels)
         inputs, labels = inputs.to(device), labels.to(device)
 
@@ -47,6 +47,16 @@ def train_one_split(model, dataloader, criterion, optimizer, device):
 
     return running_loss / len(dataloader), mae
 
+def create_splits(dataset : Dataset, n_splits, test_data=False):
+    tss = TimeSeriesSplit(n_splits=n_splits)
+    if not test_data:
+        data = tss.split(dataset)
+        data = data[:-1]
+        return data
+    else:
+        data = tss.split(dataset)
+        return data[-1]
+
 def train_one_epoch (model, dataset: Dataset, criterion, optimizer, device, n_splits, batch_size):
     train_losses = []
     train_maes = []
@@ -56,8 +66,7 @@ def train_one_epoch (model, dataset: Dataset, criterion, optimizer, device, n_sp
     val_r2s = []
     val_labels = []
     val_predictions = []
-    tss =  TimeSeriesSplit(n_splits=n_splits)
-    for fold, (train_indices, test_indices) in enumerate(tss.split(dataset)):
+    for fold, (train_indices, test_indices) in tqdm(enumerate(tss.split(dataset)), desc="Training", unit="Split", file=sys.stdout, dynamic_ncols=True):
         train_dataset = Subset(dataset, train_indices)
         test_dataset = Subset(dataset, test_indices)
         train_loader = DataLoader(train_dataset, batch_size)
@@ -80,10 +89,6 @@ def train_one_epoch (model, dataset: Dataset, criterion, optimizer, device, n_sp
     return np.array(train_losses), np.array(train_maes), np.array(val_losses), np.array(val_mses), np.array(val_maes), np.array(val_r2s), np.array(val_labels), np.array(val_predictions)
 
 
-
-
-
-
 # ---------- Training Function ----------
 def train_and_validate(model, dataset, criterion, optimizer, epochs, device, n_splits, batch_size=1):
     for epoch in trange(epochs, desc="Epochs", file=sys.stdout, dynamic_ncols=True):
@@ -100,8 +105,6 @@ def train_and_validate(model, dataset, criterion, optimizer, epochs, device, n_s
             "val_labeels" : val_labels,
             "val_predictions" : val_predictions
         })
-
-
         print(f"Epoch [{epoch + 1}/{epochs}] - "
               f"Train Loss: {train_losses.mean():.4f}, Train MAE: {train_maes.mean():.2f} -"
               f"Val Avg Loss: {val_losses.mean():.4f}, Val mse: {val_mses.mean():.2f}, Val mae: {val_maes.mean():.2f}, Val r2: {val_r2s.mean():.2f}")

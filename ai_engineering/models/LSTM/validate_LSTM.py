@@ -16,12 +16,15 @@ def validate(model, dataloader, criterion, device):
             labels = torch.log1p(labels)
             inputs, labels = inputs.to(device), labels.to(device)
 
-            outputs = model(inputs)
+            outputs, h0, c0 = model(inputs)
             loss = criterion(outputs, labels)
             running_loss += loss.item()
 
             all_preds.append(outputs.cpu().numpy())
             all_labels.append(labels.cpu().numpy())
+
+        all_preds = np.array(all_preds).flatten()
+        all_labels = np.array(all_labels).flatten()
 
         all_preds_real = np.expm1(all_preds)
         all_labels_real = np.expm1(all_labels)
