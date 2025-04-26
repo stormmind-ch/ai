@@ -1,16 +1,29 @@
-from models.LSTM.train_LSTM import train_and_validate
+from models.trainer import train_and_validate
 from datasets.ClusteredStormDamageDataset import ClusteredStormDamageDataset
 import torch
-from torch.optim import Adam
-import torch.nn as nn
 import torch.optim
-from torch.utils.data.dataloader import DataLoader
+from models.tester import test_on_final_split
 import wandb
-from models.init_model import init_model
+
 
 
 def init_wandb():
-    wandb.init(project="stormmind.ai")
+    config_defaults = {
+        'batch_size': 1,
+        'learning_rate': 0.01,
+        'hidden_size': 64,
+        'input_size': 4,
+        'output_size': 1,
+        'epochs': 1,
+        'clusters': 6,
+        'agg_method': 'mean',
+        'optimizer': 'adam',
+        'criterion': 'l1loss',
+        'model': 'LSTM',
+        'n_splits': 5,
+    }
+
+    wandb.init(project="stormmind.ai", config=config_defaults)
     return wandb.config
 
 def init_device():
@@ -26,17 +39,13 @@ def main():
     dataset = ClusteredStormDamageDataset('../Ressources/main_data_1972_2023.csv',
                                         '../Ressources/weather_data4',
                                         '../Ressources/municipalities_coordinates_newest.csv',
-                                        k=12,
-                                        grouping_calendar='weekly',
+                                        k=config.clusters,
+                                        n=7, agg_method=config.agg_method,
                                         damage_weights={0: 0, 1: 0.06, 2: 0.8, 3: 11.3})
 
+    model_paths = train_and_validate(dataset, config, device)
+    test_on_final_split(dataset, config, device, model_paths)
 
-    model = init_model('LSTM', 4, 64, 1)
-    model.to(device)
-
-    criterion = nn.L1Loss()
-    optimizer = Adam(model.parameters(), lr=0.001)
-    train_and_validate(model, dataset, criterion, optimizer, 1, device, 10)
 
 
 if __name__ == "__main__":

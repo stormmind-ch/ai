@@ -1,8 +1,9 @@
-import sys
-from tqdm import tqdm
-from sklearn.metrics import precision_score, recall_score, f1_score, mean_squared_error,mean_absolute_error, r2_score
 import torch
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from tqdm import tqdm
 import numpy as np
+import sys
+
 
 def validate(model, dataloader, criterion, device):
     model.eval()
@@ -12,25 +13,25 @@ def validate(model, dataloader, criterion, device):
 
     with torch.no_grad():
         for inputs, labels in tqdm(dataloader, desc="Validating", unit="batch", file=sys.stdout, dynamic_ncols=True):
-            labels =  torch.log1p(labels)
+            labels = torch.log1p(labels)
             inputs, labels = inputs.to(device), labels.to(device)
 
-            outputs = model(inputs).view(-1)
+            outputs, (h0, c0) = model(inputs)
             loss = criterion(outputs, labels)
             running_loss += loss.item()
 
             all_preds.append(outputs.cpu().numpy())
             all_labels.append(labels.cpu().numpy())
 
+        all_preds = np.array(all_preds).flatten()
+        all_labels = np.array(all_labels).flatten()
+
         all_preds_real = np.expm1(all_preds)
         all_labels_real = np.expm1(all_labels)
-        
+
     avg_loss = running_loss / len(dataloader)
     mse = mean_squared_error(all_labels_real, all_preds_real)
     mae = mean_absolute_error(all_labels_real, all_preds_real)
     r2 = r2_score(all_labels_real, all_preds_real)
 
     return avg_loss, mse, mae, r2, all_labels_real, all_preds_real
-
-def validate_classification(model, dataloader, criterion, device):
-    pass

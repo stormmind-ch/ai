@@ -1,5 +1,5 @@
-from models.VanillaNN.VanillaNNModel import VanillaNN
-from models.LSTM.LSTMModel import LSTM
+from models.VanillaNNModel import VanillaNN
+from models.LSTMModel import LSTM
 
 def init_model(model:str, input_size, hidden_size, output_size):
     if model == 'VanillaNN':
