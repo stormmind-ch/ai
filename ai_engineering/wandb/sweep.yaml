@@ -5,7 +5,7 @@ metric:
   goal: minimize
 parameters:
   batch_size:
-    values: [1,8,16,32,64,128,256]
+    values: [1,8,16,32,64]
   learning_rate:
     min: 0.0001
     max: 0.01
@@ -16,8 +16,8 @@ parameters:
   output_size:
     values: [1]
   epochs:
-    min: 10
-    max: 200
+    min: 5
+    max: 10
   clusters:
     values: [6,12, 26]
   agg_method:
