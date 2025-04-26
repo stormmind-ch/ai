@@ -8,22 +8,7 @@ import wandb
 
 
 def init_wandb():
-    config_defaults = {
-        'batch_size': 1,
-        'learning_rate': 0.01,
-        'hidden_size': 64,
-        'input_size': 4,
-        'output_size': 1,
-        'epochs': 1,
-        'clusters': 6,
-        'agg_method': 'mean',
-        'optimizer': 'adam',
-        'criterion': 'l1loss',
-        'model': 'LSTM',
-        'n_splits': 5,
-    }
-
-    wandb.init(project="stormmind.ai", config=config_defaults)
+    wandb.init(project="stormmind.ai")
     return wandb.config
 
 def init_device():

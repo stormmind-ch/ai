@@ -85,6 +85,7 @@ def train_and_validate(dataset: Dataset, config,  device):
     splits = create_splits(dataset, config.n_splits, False)
 
     model_paths = []
+    fold_table = wandb.Table(columns=["fold", "avg_loss", "mse", "mae", "r2"])
     for fold, (train_idx, val_idx) in enumerate(splits):
         train_dataset = Subset(dataset, train_idx)
         val_dataset = Subset(dataset, val_idx)
@@ -99,13 +100,22 @@ def train_and_validate(dataset: Dataset, config,  device):
         criterion = get_criterion(config.criterion)
         _train(model, train_loader, val_loader, criterion, optimizer, config.epochs, device)
         avg_loss, mse, mae, r2, all_labels_real, all_preds_real = validate(model, val_loader, criterion, device)
-        wandb.log({
-            f"fold_{fold+1}_avg_loss": avg_loss,
-            f"fold_{fold+1}_mse": mse,
-            f"fold_{fold+1}_mae": mae,
-            f"fold_{fold+1}_r2": r2
-        })
+        fold_table.add_data(fold + 1, avg_loss, mse, mae, r2)
         path = save_model(model, fold)
         model_paths.append(path)
+
+    wandb.log({"fold_metrics": fold_table})
+
+    avg_r2 = fold_table.get_column("r2")
+    mean_r2 = sum(avg_r2) / len(avg_r2)
+    wandb.log({"mean_r2": mean_r2})
+
+    avg_mse = fold_table.get_column("mse")
+    mean_mse = sum(avg_mse) / len(avg_mse)
+    wandb.log({"mean_mse": mean_mse})
+
+    avg_mae = fold_table.get_column("mae")
+    mean_mae = sum(avg_mae) / len(avg_mae)
+    wandb.log({"mean_mae": mean_mae})
 
     return model_paths
