@@ -17,14 +17,21 @@ def validate(model, dataloader, criterion, device):
             inputs, labels = inputs.to(device), labels.to(device)
 
             outputs, (h0, c0) = model(inputs)
+
+            # Squeeze outputs/labels if needed
+            if outputs.dim() == 2 and outputs.shape[1] == 1:
+                outputs = outputs.squeeze(1)
+            if labels.dim() == 2 and labels.shape[1] == 1:
+                labels = labels.squeeze(1)
+
             loss = criterion(outputs, labels)
             running_loss += loss.item()
 
             all_preds.append(outputs.cpu().numpy())
             all_labels.append(labels.cpu().numpy())
 
-        all_preds = np.array(all_preds).flatten()
-        all_labels = np.array(all_labels).flatten()
+        all_preds = np.concatenate(all_preds)
+        all_labels = np.concatenate(all_labels)
 
         all_preds_real = np.expm1(all_preds)
         all_labels_real = np.expm1(all_labels)
