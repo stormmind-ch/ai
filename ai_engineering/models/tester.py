@@ -20,7 +20,7 @@ def test_on_final_split(dataset: Dataset, config, device, model_paths):
         model.to(device)
 
         criterion = get_criterion(config.criterion)
-        avg_loss, mse, mae, r2, _, _ = validate(model, test_loader, criterion, device)
+        avg_loss, mse, mae, r2, trues, preds = validate(model, test_loader, criterion, device)
 
         wandb.log({
             f"test_fold_{fold+1}_avg_loss": avg_loss,
@@ -28,5 +28,9 @@ def test_on_final_split(dataset: Dataset, config, device, model_paths):
             f"test_fold_{fold+1}_mae": mae,
             f"test_fold_{fold+1}_r2": r2
         })
+
+        data = [[x, y] for (x, y) in zip(trues, preds)]
+        table = wandb.Table(data=data, columns=["trues", "preds"])
+        wandb.log({"trues_vs_preds_plot": wandb.plot.scatter(table, "trues", "preds")})
 
         print(f"Fold {fold+1} tested on final split: MAE = {mae:.4f}, R2 = {r2:.4f}")

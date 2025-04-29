@@ -25,7 +25,7 @@ def main():
                                         '../Ressources/weather_data4',
                                         '../Ressources/municipalities_coordinates_newest.csv',
                                         k=config.clusters,
-                                        n=7, agg_method=config.agg_method,
+                                        n=7,
                                         damage_weights={0: 0, 1: 0.06, 2: 0.8, 3: 11.3})
 
     model_paths = train_and_validate(dataset, config, device)
