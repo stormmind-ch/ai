@@ -2,42 +2,46 @@ import datetime
 import numpy as np
 import polars as pl
 import torch
+import wandb
 from torch.utils.data.dataset import  Dataset
 from datasets.utils.dataset_utils import preload_weather_data, merge_clusters_initial, normalize_text, get_weather_features
 from datasets.utils.grouping_utils import group_damages
 from datasets.utils.clustering_utils import make_clusters
 from calendar import monthrange
+from datasets.utils.classifing_damages_utils import make_bin_of_classes
 
 
 def _load_main_data(main_data_path: str, municipality_coordinates_path,
-                    k, damage_weights, n, grouping_calendar):
-
+                    k, damage_weights, n, grouping_calendar, damage_distribution: list):
     mun_dates_damage = pl.read_csv(main_data_path)
     mun_coordinates = pl.read_csv(municipality_coordinates_path)
     clusters_df, clusters = make_clusters(k, mun_coordinates)
     merged = merge_clusters_initial(clusters_df, mun_dates_damage)
     final = group_damages(merged, damage_weights,n, grouping_calendar)
+    final, (low, mid) = make_bin_of_classes(final, damage_distribution)
+    wandb.log({
+        "low_threshold": low,
+        "mid_threshold": mid
+    })
     return final, clusters
 
 
-def split_dataframe_by_time(df: pl.DataFrame, val_years: int, test_years: int) -> tuple[
-    pl.DataFrame, pl.DataFrame, pl.DataFrame]:
+def split_dataframe_by_time(df: pl.DataFrame, test_years: int) -> tuple[
+    pl.DataFrame, pl.DataFrame]:
     df = df.sort("end_date")
     last_date = df.select(pl.col("end_date").max()).item()
 
     test_start = last_date.replace(year=last_date.year - test_years)
-    val_start = test_start.replace(year=test_start.year - val_years)
 
-    train = df.filter(pl.col("end_date") < val_start)
-    val = df.filter((pl.col("end_date") >= val_start) & (pl.col("end_date") < test_start))
+    train = df.filter(pl.col("end_date") < test_start)
     test = df.filter(pl.col("end_date") >= test_start)
 
-    return train, val, test
+    return train, test
 
 
 class ClusteredStormDamageDataset(Dataset):
-    def __init__(self, main_data_path : str, weather_data_dir: str, municipality_coordinates_path:str,
-                 agg_method: str, k: int, split: str = None, val_years:int = 2, test_years: int = 2,
+    def __init__(self, main_data_path : str, weather_data_dir: str, municipality_coordinates_path:str, k: int,
+                 agg_method: str = None, split: str = None, test_years: int = 2, damage_distribution:list[float] = [0.90047344, 0.06673681, 0.03278976],
                  damage_weights:dict[int:float]=None, n:int = None, grouping_calendar: str = None):
         """
         Args:
@@ -47,17 +51,15 @@ class ClusteredStormDamageDataset(Dataset):
             agg_method: How the weather data over the timespan should be aggregated to one value. E.g. ['mean', 'median']
             k: Number of clusters which should be created
         """
-        self.dataframe, clusters = _load_main_data(main_data_path, municipality_coordinates_path, k, damage_weights, n, grouping_calendar)
+        self.dataframe, clusters = _load_main_data(main_data_path, municipality_coordinates_path, k, damage_weights, n, grouping_calendar, damage_distribution)
         self.timespan_int = n if n else None
         self.timespan_calendar = grouping_calendar if grouping_calendar else None
         self.agg_method = agg_method
         self.weather_data_cache = preload_weather_data(weather_data_dir, clusters)
 
-        train_df, val_df, test_df = split_dataframe_by_time(self.dataframe, val_years, test_years)
+        train_df, test_df = split_dataframe_by_time(self.dataframe, test_years)
         if split == 'train':
             self.dataframe = train_df
-        elif split == 'val':
-            self.dataframe = val_df
         elif split == 'test':
             self.dataframe = test_df
         else:
@@ -79,8 +81,10 @@ class ClusteredStormDamageDataset(Dataset):
             agg_weather_features = np.median(weather_features, axis=1)
         elif self.agg_method == 'sum':
             agg_weather_features = np.sum(weather_features, axis=1)
-        else:
+        elif self.agg_method == 'mean':
             agg_weather_features = np.mean(weather_features, axis=1)
+        else: #apply no aggregation
+            agg_weather_features = weather_features.T
 
         features = torch.tensor(agg_weather_features)
         label = torch.tensor(damage_grouped)
