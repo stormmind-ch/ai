@@ -10,16 +10,13 @@ class LSTM(nn.Module):
         self.fc = nn.Linear(hidden_dim, output_dim)
 
     def forward(self, x, hc=None):
-        batch_size = x.size(0)
         if hc is None:
-            out, (hn, cn) = self.lstm(x)  # no hidden states passed
+            h0 = torch.zeros(self.layer_dim, x.size(0), self.hidden_dim).to(x.device)
+            c0 = torch.zeros(self.layer_dim, x.size(0), self.hidden_dim).to(x.device)
         else:
             h0, c0 = hc
-            out, (hn, cn) = self.lstm(x, (h0, c0))
-
-        if out.ndim == 3:
-            out = out[:, -1, :]  # take last time step
-        # else: assume out is already (batch_size, hidden_dim)
-        out = self.fc(out)
+        out, (hn, cn) = self.lstm(x, (h0, c0))
+        out = self.fc(out[:, -1, :])  # maybe
         return out, (hn, cn)
+
 

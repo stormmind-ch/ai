@@ -16,76 +16,37 @@ from models.VanillaNNModel import VanillaNN
 def _train_one_epoch(model, dataloader, criterion, optimizer, device):
     model.train()
     running_loss = 0.0
-    all_preds = []
-    all_labels = []
 
     h0, c0 = None, None
     for inputs, labels in tqdm(dataloader, desc="Training", unit="batch", file=sys.stdout, dynamic_ncols=True):
-        labels = torch.log1p(labels)
         inputs, labels = inputs.to(device), labels.to(device)
-
         optimizer.zero_grad()
 
         if isinstance(model, LSTM):
-            if h0 is None and c0 is None:
-                outputs, (h0, c0) = model(inputs)
-            else:
-                outputs, (h0, c0) = model(inputs, hc=(h0, c0))
-            h0 = h0.detach()
-            c0 = c0.detach()
+            outputs, _ = model(inputs)
         else:
             outputs = model(inputs)
-
-        outputs = outputs.squeeze()
         loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
 
         running_loss += loss.item()
 
-        pred_array = outputs.detach().cpu().numpy()
-        label_array = labels.cpu().numpy()
+    return running_loss / len(dataloader)
 
-        if pred_array.ndim == 0:
-            pred_array = np.expand_dims(pred_array, axis=0)
-
-        if label_array.ndim == 0:
-            label_array = np.expand_dims(label_array, axis=0)
-
-        all_preds.append(pred_array)
-        all_labels.append(label_array)
-
-    # Flatten lists of arrays
-
-    all_preds = np.concatenate(all_preds)
-    all_labels = np.concatenate(all_labels)
-
-    # Avoid overflow, then the max value is 1e13. Should be enought
-    all_preds = np.clip(all_preds, a_min=None, a_max=30)
-    all_labels = np.clip(all_labels, a_min=None, a_max=30)
-
-    # Convert back to original scale
-    all_preds_real = np.expm1(all_preds)
-    all_labels_real = np.expm1(all_labels)
-
-    mae = mean_absolute_error(all_labels_real, all_preds_real)
-
-    return running_loss / len(dataloader), mae
-
-def _train(model, train_loader, val_loader, criterion, optimizer, epochs, device):
+def _train(model, train_loader, criterion, optimizer, epochs, device):
     for epoch in trange(epochs, desc="Epochs", file=sys.stdout, dynamic_ncols=True):
-        train_loss, train_mae = _train_one_epoch(model, train_loader, criterion, optimizer, device)
+        train_loss = _train_one_epoch(model, train_loader, criterion, optimizer, device)
         wandb.log({
             "epoch": epoch + 1,
-            "train_loss" : train_loss,
-            "train_mae": train_mae
+            "train_loss" : train_loss
         })
 
 def train_and_validate(dataset: Dataset, config,  device):
     splits = create_splits(dataset, config.n_splits, False)
 
     model_paths = []
-    fold_table = wandb.Table(columns=["fold", "avg_loss", "mse", "mae", "r2"])
+    fold_table = wandb.Table(columns=["fold", "avg_loss", "accuracy", "precision", "specificity", "f1"])
     for fold, (train_idx, val_idx) in enumerate(splits):
         train_dataset = Subset(dataset, train_idx)
         val_dataset = Subset(dataset, val_idx)
@@ -98,24 +59,29 @@ def train_and_validate(dataset: Dataset, config,  device):
 
         optimizer = get_optimizer(config.optimizer, model.parameters(), config.learning_rate)
         criterion = get_criterion(config.criterion)
-        _train(model, train_loader, val_loader, criterion, optimizer, config.epochs, device)
-        avg_loss, mse, mae, r2, all_labels_real, all_preds_real = validate(model, val_loader, criterion, device)
-        fold_table.add_data(fold + 1, avg_loss, mse, mae, r2)
+        _train(model, train_loader, criterion, optimizer, config.epochs, device)
+        avg_loss, accuracy, precision, specificity, f1, labels, predictions = validate(model, val_loader, criterion, device)
+
+        fold_table.add_data(fold + 1, avg_loss, accuracy, precision, specificity, f1)
         path = save_model(model, fold)
         model_paths.append(path)
 
     wandb.log({"fold_metrics": fold_table})
 
-    avg_r2 = fold_table.get_column("r2")
-    mean_r2 = sum(avg_r2) / len(avg_r2)
-    wandb.log({"mean_r2": mean_r2})
+    accuracy_col = fold_table.get_column("accuracy")
+    mean_accuracy = sum(accuracy_col) / len(accuracy_col)
+    wandb.log({"mean_accuracy": mean_accuracy})
 
-    avg_mse = fold_table.get_column("mse")
-    mean_mse = sum(avg_mse) / len(avg_mse)
-    wandb.log({"mean_mse": mean_mse})
+    precision_col = fold_table.get_column("precision")
+    mean_precision = sum(precision_col) / len(precision_col)
+    wandb.log({"mean_precision": mean_precision})
 
-    avg_mae = fold_table.get_column("mae")
-    mean_mae = sum(avg_mae) / len(avg_mae)
-    wandb.log({"mean_mae": mean_mae})
+    specificity_col = fold_table.get_column("specificity")
+    mean_specificity = sum(specificity_col) / len(specificity_col)
+    wandb.log({"mean_specificity": mean_specificity})
+
+    f1_col = fold_table.get_column("f1")
+    mean_f1 = sum(f1_col) / len(f1_col)
+    wandb.log({"mean_f1": mean_f1})
 
     return model_paths

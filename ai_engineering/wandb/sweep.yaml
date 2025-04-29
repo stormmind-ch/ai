@@ -25,7 +25,7 @@ parameters:
   optimizer:
     values: ['adam', 'sgd']
   criterion:
-    values: ['mseloss', 'l1loss']
+    values: ['crossentropyloss']
   model:
     values: ['LSTM']
   n_splits:

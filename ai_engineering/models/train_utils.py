@@ -3,7 +3,7 @@ from torch.utils.data import Dataset
 from torch import Tensor
 from torch.optim import Adam, SGD
 from typing import Iterable
-from torch.nn import L1Loss, MSELoss
+from torch.nn import L1Loss, MSELoss, CrossEntropyLoss
 from datetime import datetime
 import os
 import torch
@@ -19,6 +19,8 @@ def get_criterion(criterion: str):
         return MSELoss()
     elif str.lower(criterion) == 'l1loss':
         return L1Loss()
+    elif str.lower(criterion) == 'crossentropyloss':
+        return CrossEntropyLoss()
     else:
         raise ValueError(f"Unsupported criterion: {criterion}")
 
@@ -32,7 +34,7 @@ def create_splits(dataset: Dataset, n_splits: int, test_data: bool = False):
     else:
         return splits[-1]
 
-# Create a timestamp
+
 def save_model(model, fold):
     timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     model_path = f"trained_models/model_fold_{fold + 1}_{timestamp}.pt"
@@ -40,3 +42,4 @@ def save_model(model, fold):
     torch.save(model.state_dict(), model_path)
     print(f"Model saved: {model_path}")
     return model_path
+
