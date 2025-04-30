@@ -19,10 +19,11 @@ def _load_main_data(main_data_path: str, municipality_coordinates_path,
     merged = merge_clusters_initial(clusters_df, mun_dates_damage)
     final = group_damages(merged, damage_weights,n, grouping_calendar)
     final, (low, mid) = make_bin_of_classes(final, damage_distribution)
-    wandb.log({
-        "low_threshold": low,
-        "mid_threshold": mid
-    })
+    if wandb.run is not None:
+        wandb.log({
+            "low_threshold": low,
+            "mid_threshold": mid
+        })
     return final, clusters
 
 
