@@ -4,8 +4,11 @@ from sklearn.metrics import accuracy_score, precision_score, roc_auc_score, f1_s
 from tqdm import tqdm
 import numpy as np
 import sys
-
-
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import wandb
+from sklearn.metrics import classification_report
 
 def validate(model, dataloader, criterion, device):
     """
@@ -30,10 +33,10 @@ def validate(model, dataloader, criterion, device):
     all_labels = []
 
     with torch.no_grad():
-        for inputs, labels in tqdm(dataloader, desc="Validating", unit="batch", file=sys.stdout, dynamic_ncols=True):
-            inputs, labels = inputs.to(device), labels.to(device)
+        for inputs, labels, previousyear in tqdm(dataloader, desc="Validating", unit="batch", file=sys.stdout, dynamic_ncols=True):
+            inputs, labels, previousyear = inputs.to(device), labels.to(device), previousyear.to(device)
 
-            outputs, (h0, c0) = model(inputs)
+            outputs= model(inputs, previousyear)
             loss = criterion(outputs, labels)
 
             running_loss += loss.item()
@@ -45,6 +48,7 @@ def validate(model, dataloader, criterion, device):
         all_preds = np.concatenate(all_preds)
         all_labels = np.concatenate(all_labels)
 
+    log_classification_report_heatmap(all_labels, all_preds)
     avg_loss = running_loss / len(dataloader)
     accuracy = accuracy_score(all_labels, all_preds, normalize=True)
     precision = precision_score(all_labels, all_preds, average='macro')
@@ -52,3 +56,15 @@ def validate(model, dataloader, criterion, device):
     f1 = f1_score(all_labels, all_preds, average='macro')
 
     return avg_loss, accuracy, precision, specificity, f1, all_labels, all_preds
+
+
+
+def log_classification_report_heatmap(all_labels, all_preds):
+    report = classification_report(all_labels, all_preds, output_dict=True)
+    report_df = pd.DataFrame(report).T.drop(["accuracy", "macro avg", "weighted avg"])
+
+    plt.figure(figsize=(6, 4))
+    sns.heatmap(report_df[["precision", "recall", "f1-score"]].astype(float), annot=True, cmap="Blues", fmt=".2f")
+    plt.title("Classification Report")
+    wandb.log({"classification_report_heatmap": wandb.Image(plt)})
+    plt.close()

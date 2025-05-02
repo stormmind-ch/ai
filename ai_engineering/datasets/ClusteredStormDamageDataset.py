@@ -105,6 +105,16 @@ class ClusteredStormDamageDataset(Dataset):
         damage = row['damage_grouped']
         latitude = row['Cluster_Center_Lat']
         longitude = row['Cluster_Center_Long']
+
+        # dates are from the current back to the one furthest in the past
+        features = self.get_feature_sequence(dates, end_date, municipality, latitude, longitude)
+
+        label = torch.tensor(damage, dtype=torch.long)
+
+        return features, label
+
+
+    def get_feature_sequence(self, dates, current_date, municipality, latitude, longitude):
         feature_sequence = []
         mask_sequence = []
 
@@ -118,7 +128,7 @@ class ClusteredStormDamageDataset(Dataset):
                 t2m, sun, rain, snow = calculate_agg_weather_features(t2m, sun, rain, snow)
                 label_old = torch.tensor(row["damage_grouped"], dtype=torch.float32)
 
-                if date == end_date:
+                if date == current_date:
                     label_old = torch.tensor(-1.0, dtype=torch.float32) # adding -1 as a "mask" for the current label to predict
 
                 date_tensor = torch.tensor(date.month, dtype=torch.float32)
@@ -137,12 +147,10 @@ class ClusteredStormDamageDataset(Dataset):
 
             feature_sequence.append(features)
 
-        features = torch.stack(feature_sequence)
-        masks = torch.stack(mask_sequence) # could be used in future
+        return torch.stack(feature_sequence)
 
-        label = torch.tensor(damage, dtype=torch.long)
 
-        return features, label
+
 
     def calc_timespan(self, end_date:datetime.date):
         if self.timespan_calendar == 'weekly':

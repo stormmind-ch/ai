@@ -3,7 +3,7 @@ import torch
 from datetime import date as Date
 import numpy as np
 from datetime import datetime
-from ai_engineering.datasets.utils.dataset_utils import normalize_text, preload_weather_data
+from datasets.utils.dataset_utils import normalize_text, preload_weather_data
 from utils.dataset_utils import load_main_dataset_to_numpy, preload_coordinates, date_features_sincos_normalisation, get_weather_features
 
 
@@ -48,7 +48,7 @@ class StormDamageDataset(Dataset):
 
         normalized_municipality = normalize_text(municipality)
         date = Date.fromisoformat(date_str)
-        weather_features = self._get_weather_features(normalized_municipality, date)
+        weather_features = get_weather_features(normalized_municipality, date, self.weather_cache, 1)
         coords = np.array(self.municipalities_coordinates[municipality])
 
         if weather_features is None:

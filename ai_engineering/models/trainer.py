@@ -4,7 +4,7 @@ from torch.utils.data.dataset import Dataset, Subset
 from torch.utils.data.dataloader import DataLoader
 import torch
 from tqdm import tqdm, trange
-from models.init_model import init_model
+from models.init_model import init_model, get_seq2seq
 import numpy as np
 import sys
 from models.train_utils import get_optimizer, get_criterion, create_splits, save_model
@@ -17,15 +17,11 @@ def _train_one_epoch(model, dataloader, criterion, optimizer, device):
     model.train()
     running_loss = 0.0
 
-    h0, c0 = None, None
-    for inputs, labels in tqdm(dataloader, desc="Training", unit="batch", file=sys.stdout, dynamic_ncols=True):
-        inputs, labels = inputs.to(device), labels.to(device)
+    for inputs, labels, previousyear in tqdm(dataloader, desc="Training", unit="batch", file=sys.stdout, dynamic_ncols=True):
+        inputs, labels, previousyear = inputs.to(device), labels.to(device), previousyear.to(device)
         optimizer.zero_grad()
+        outputs = model(inputs, previousyear)
 
-        if isinstance(model, LSTM):
-            outputs, _ = model(inputs)
-        else:
-            outputs = model(inputs)
         loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
@@ -42,46 +38,31 @@ def _train(model, train_loader, criterion, optimizer, epochs, device):
             "train_loss" : train_loss
         })
 
-def train_and_validate(dataset: Dataset, config,  device):
-    splits = create_splits(dataset, config.n_splits, False)
+def train_and_validate(train_dataset: Dataset, test_dataset: Dataset, config, device):
 
     model_paths = []
-    fold_table = wandb.Table(columns=["fold", "avg_loss", "accuracy", "precision", "specificity", "f1"])
-    for fold, (train_idx, val_idx) in enumerate(splits):
-        train_dataset = Subset(dataset, train_idx)
-        val_dataset = Subset(dataset, val_idx)
 
-        train_loader = DataLoader(train_dataset, batch_size=config.batch_size)
-        val_loader = DataLoader(val_dataset, batch_size=config.batch_size)
 
-        model = init_model(config.model, config.input_size, config.hidden_size, config.output_size)
-        model.to(device)
+    train_loader = DataLoader(train_dataset, batch_size=config.batch_size)
+    val_loader = DataLoader(test_dataset, batch_size=config.batch_size)
 
-        optimizer = get_optimizer(config.optimizer, model.parameters(), config.learning_rate)
-        criterion = get_criterion(config.criterion)
-        _train(model, train_loader, criterion, optimizer, config.epochs, device)
-        avg_loss, accuracy, precision, specificity, f1, labels, predictions = validate(model, val_loader, criterion, device)
+    model = get_seq2seq(config.hidden_size, config.num_layers, config.p)
+    model.to(device)
 
-        fold_table.add_data(fold + 1, avg_loss, accuracy, precision, specificity, f1)
-        path = save_model(model, fold)
-        model_paths.append(path)
+    optimizer = get_optimizer(config.optimizer, model.parameters(), config.learning_rate)
+    criterion = get_criterion(config.criterion)
+    _train(model, train_loader, criterion, optimizer, config.epochs, device)
+    avg_loss, accuracy, precision, specificity, f1, labels, predictions = validate(model, val_loader, criterion, device)
 
-    wandb.log({"fold_metrics": fold_table})
 
-    accuracy_col = fold_table.get_column("accuracy")
-    mean_accuracy = sum(accuracy_col) / len(accuracy_col)
-    wandb.log({"mean_accuracy": mean_accuracy})
-
-    precision_col = fold_table.get_column("precision")
-    mean_precision = sum(precision_col) / len(precision_col)
-    wandb.log({"mean_precision": mean_precision})
-
-    specificity_col = fold_table.get_column("specificity")
-    mean_specificity = sum(specificity_col) / len(specificity_col)
-    wandb.log({"mean_specificity": mean_specificity})
-
-    f1_col = fold_table.get_column("f1")
-    mean_f1 = sum(f1_col) / len(f1_col)
-    wandb.log({"mean_f1": mean_f1})
+    path = save_model(model, 1)
+    model_paths.append(path)
+    wandb.log({
+        "avg_loss" : avg_loss,
+        "accuracy": accuracy,
+        "precision": precision,
+        "specificity" : specificity,
+        "f1": f1
+    })
 
     return model_paths

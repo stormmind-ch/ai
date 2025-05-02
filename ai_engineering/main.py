@@ -1,8 +1,7 @@
 from models.trainer import train_and_validate
-from datasets.ClusteredStormDamageDataset import ClusteredStormDamageDataset
+from datasets.ClusteredStormDamageDatasetIncludesPreviousYear import ClusteredStormDamageDatasetIncludesPreviousYear
 import torch
 import torch.optim
-from models.tester import test_on_final_split
 import wandb
 
 
@@ -21,15 +20,28 @@ def main():
     config = init_wandb()
     device = init_device()
 
-    dataset = ClusteredStormDamageDataset('../Ressources/main_data_1972_2023.csv',
+    train_dataset = ClusteredStormDamageDatasetIncludesPreviousYear('../Ressources/main_data_1972_2023.csv',
                                         '../Ressources/weather_data4',
                                         '../Ressources/municipalities_coordinates_newest.csv',
-                                        k=config.clusters,
-                                        n=7,
-                                        damage_weights={0: 0, 1: 0.06, 2: 0.8, 3: 11.3})
+                                                  n_clusters=config.clusters,
+                                                  n_sequences=2, test_years=10,
+                                                  grouping_calendar='weekly', split='train',
+                                                  damage_weights={0: 0, 1: 0.06, 2: 0.8, 3: 11.3})
+    mean, std = train_dataset.mean, train_dataset.std
 
-    model_paths = train_and_validate(dataset, config, device)
-    test_on_final_split(dataset, config, device, model_paths)
+    test_dataset = ClusteredStormDamageDatasetIncludesPreviousYear('../Ressources/main_data_1972_2023.csv',
+                                        '../Ressources/weather_data4',
+                                        '../Ressources/municipalities_coordinates_newest.csv',
+                                                  n_clusters=config.clusters,
+                                                  n_sequences=2, test_years=10,
+                                                  grouping_calendar='weekly', split='train',
+                                                  damage_weights={0: 0, 1: 0.06, 2: 0.8, 3: 11.3},
+                                                         mean=mean, std=std)
+
+
+    model_paths = train_and_validate(train_dataset, test_dataset, config, device)
+
+
 
 
 

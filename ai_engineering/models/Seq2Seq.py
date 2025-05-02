@@ -1,4 +1,3 @@
-import torch
 import torch.nn as nn
 
 
@@ -8,54 +7,37 @@ class Encoder(nn.Module):
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.dropout = nn.Dropout(p)
-        self.rnn = nn.LSTM(input_size, hidden_size, num_layers, dropout=p)
+        self.rnn = nn.LSTM(input_size, hidden_size, num_layers, dropout=p, batch_first=True)
 
     def forward(self, x):
-        # shape of x: (input_length, batch_size)
-        outputs, hidden, cell = self.rnn(self.dropout(x))
+        # shape of x: {batch_size, n_sequences, n_features}
+        outputs, (hidden, cell) = self.rnn(x)
         return hidden, cell
 
 class Decoder(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size, num_layers, p):
+    def __init__(self, input_size, hidden_size, num_layers, p):
         super(Decoder, self).__init__()
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.dropout = nn.Dropout(p)
-        self.rnn = nn.LSTM(input_size, hidden_size, num_layers, dropout=p)
+        self.embedding = nn.Embedding(input_size, hidden_size)
+        self.rnn = nn.LSTM(input_size, hidden_size, num_layers, dropout=p, batch_first=True)
+        self.fc = nn.Linear(hidden_size, 2)
 
     def forward(self, x, hidden, cell):
-        # x: is the embedded data from the year before
-        x = self.dropout(x)
-        outputs, (hidden, cell) = self.rnn(x, (hidden, cell))
-        return outputs
-
-class Embedding(nn.Module):
-    def __init__(self, input_size, embedding_size):
-        super(Embedding, self).__init__()
-        self.embedding = nn.Embedding(input_size, embedding_size)
-
-    def forward(self, x):
-        return self.embedding(x)
-
-class MLP(nn.Module):
-    def __init__(self, input_size, output_size):
-        super(MLP, self).__init__()
-        self.fc = nn.Linear(input_size, output_size)
-
-    def forward(self,x ):
-        return self.fc(x)
+        # shape of x: {batch_size, n_sequences, n_features}: This is the data of the previous year.
+        outputs, (hidden, cell) = self.rnn(x, (hidden, cell)) # outputs shape: (batch_size, seq_len, hidden_size)
+        last_output = outputs[:, -1, :]
+        pred = self.fc(last_output)
+        return pred
 
 class Seq2Seq(nn.Module):
-    def __init__(self, encoder, decoder, embedding, mlp):
+    def __init__(self, encoder: Encoder, decoder : Decoder):
         super(Seq2Seq, self).__init__()
         self.encoder = encoder
         self.decoder = decoder
-        self.embedding = embedding
-        self.mlp = mlp
 
-    def forward(self, x, x_last, y_last):
-        hidden, cell = self.encoder(x)
-        embedding_x_last = self.embedding(x_last)
-        input_decoder = torch.concatenate((hidden, cell, embedding_x_last, y_last))
-        output_decoder = self.decoder(input_decoder)
-        return self.mlp(output_decoder)
+    def forward(self, x_current, x_previous):
+        hidden, cell = self.encoder(x_current)
+        decoder_output = self.decoder(x_previous, hidden, cell)
+        return decoder_output

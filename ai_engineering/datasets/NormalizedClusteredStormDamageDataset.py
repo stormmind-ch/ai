@@ -1,31 +1,38 @@
 from torch.utils.data.dataset import Dataset
 from datasets.ClusteredStormDamageDataset import ClusteredStormDamageDataset
+from datasets.ClusteredStormDamageDatasetBinaryLabels import ClusteredStormDamageDatasetBinaryLabels
 import numpy as np
 from numpy import typing as npt
 import torch
 
-class NormalizedClusteredStormDamageDataset(Dataset):
+class NormalizedClusteredStormDamageDataset(ClusteredStormDamageDatasetBinaryLabels):
     """
     Decorator / Wrapper for ClusteredStormDamageDataset to normalize the features
     """
-    def __init__(self, base_dataset: ClusteredStormDamageDataset, mean:npt.NDArray=None, std: npt.NDArray=None):
-        self.base_dataset = base_dataset
+
+    def __init__(self, main_data_path: str, weather_data_dir: str, municipality_coordinates_path: str, n_clusters: int,
+                 n_sequences: int,
+                 split: str = None, test_years: int = 2,
+                 damage_distribution: list[float] = [0.90047344, 0.06673681, 0.03278976],
+                 damage_weights: dict[int:float] = None, grouping_calendar: str = 'weekly',
+                 mean=None, std=None):
+        super().__init__(main_data_path, weather_data_dir, municipality_coordinates_path, n_clusters, n_sequences,
+                         split, test_years, damage_distribution, damage_weights, grouping_calendar)
         self.mean, self.std = mean, std
 
-        if not mean or not std:
+        if self.mean is None or self.std is None:
             self.mean, self.std = self.get_mean_std()
 
-    def __len__(self):
-        return len(self.base_dataset)
 
     def __getitem__(self, idx):
-        features, label = self.base_dataset[idx]
+        features, label = super().__getitem__(idx)
         features = self.normalize_features(features)
         return features, label
 
     def get_mean_std(self):
         X = []
-        for feat, _ in self.base_dataset:
+        for i in range(len(self)):
+            feat, _ = super().__getitem__(i)
             cur = feat[0].squeeze().numpy()  # current week only (t=0), shape [F]
             X.append(cur)
         X_all = np.stack(X)  # shape [N, F]
