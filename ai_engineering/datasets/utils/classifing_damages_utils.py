@@ -9,10 +9,13 @@ def make_bin_of_classes(dataframe: pl.DataFrame, distribution: list[float]) -> t
     mid_percentage = distribution[1]
 
     damages = dataframe['damage_grouped']
-    non_zero_damages = damages.filter(damages != 0.0)
+    non_zero_damages = damages.filter(damages > 0.0)
 
     low_thresh = np.percentile(non_zero_damages.to_numpy(), low_percentage * 100)
     mid_thresh = np.percentile(non_zero_damages.to_numpy(), (low_percentage + mid_percentage) * 100)
+
+    print(f"low threshold: {low_thresh}")
+    print(f"mid thresh: {mid_thresh}")
 
     dataframe = dataframe.with_columns(
         pl.when(pl.col('damage_grouped') == 0.0).then(0)
