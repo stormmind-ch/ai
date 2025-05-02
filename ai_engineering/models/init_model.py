@@ -1,8 +1,6 @@
-from models.VanillaNNModel import VanillaNN
-from models.LSTMModel import LSTM
 from models.Seq2Seq import Seq2Seq, Encoder, Decoder
-from models.LSTMAttention import LSTMAttention
 
+"""
 def init_model(model:str, input_size, hidden_size, output_size, num_layers, dropout_rate=0.5):
     if model == 'VanillaNN':
         return VanillaNN(input_size,hidden_size, output_size)
@@ -16,6 +14,7 @@ def init_model(model:str, input_size, hidden_size, output_size, num_layers, drop
                              out_features=4,
                              bidirectional=True,  # try Bi-LSTM first
                              attn_type='dot')
+    """
 
 
 def get_seq2seq(hidden_size, num_layers, p):
@@ -26,5 +25,3 @@ def get_seq2seq(hidden_size, num_layers, p):
 
 
 
-def get_lstm():
-    return LSTM()
