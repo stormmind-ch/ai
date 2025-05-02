@@ -108,4 +108,8 @@ def get_weather_features(municipality: str, date: datetime.date, weather_data_ca
     rain_sum = data['rain_sum'][start_date:end_date]
     snowfall_sum = data['snowfall_sum'][start_date:end_date]
 
-    return np.vstack([temperature_2m_mean, sunshine_duration, rain_sum, snowfall_sum])
+    return temperature_2m_mean, sunshine_duration, rain_sum, snowfall_sum
+
+def calculate_agg_weather_features(temperature_2m_mean, sunshine_duration, rain_sum, snowfall_sum):
+    temperature_2m_mean, sunshine_duration, rain_sum, snowfall_sum = np.mean(temperature_2m_mean), np.mean(sunshine_duration), np.sum(rain_sum), np.sum(snowfall_sum)
+    return temperature_2m_mean, sunshine_duration, rain_sum, snowfall_sum
