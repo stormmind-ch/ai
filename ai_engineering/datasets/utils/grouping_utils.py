@@ -35,13 +35,13 @@ def group_damages(date_cluster_damage: pl.DataFrame, damage_weights: dict[int, f
         pl.arange(0, grouped.height).alias('index')
     )
 
-    return grouped.select(['index', 'end_date', 'Center_Municipality', 'damage_grouped'])
+    return grouped.select(['index', 'end_date', 'Center_Municipality', 'Cluster_Center_Lat', 'Cluster_Center_Long', 'damage_grouped'])
 
 def _group_weekly(df: pl.DataFrame) -> pl.DataFrame:
     df = df.with_columns([
         pl.col("Date").map_elements(lambda d: d + timedelta(days=(6 - d.weekday())), return_dtype=pl.Date).alias("end_date")
     ])
-    return df.group_by(['end_date', 'Center_Municipality']).agg(
+    return df.group_by(['end_date', 'Center_Municipality', 'Cluster_Center_Lat', 'Cluster_Center_Long']).agg(
         pl.col('extent_of_damage').sum().alias('damage_grouped')
     )
 
