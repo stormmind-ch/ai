@@ -1,10 +1,6 @@
 from datetime import date, timedelta
 import torch
-from torch.utils.data.dataset import Dataset
-from datasets.ClusteredStormDamageDataset import ClusteredStormDamageDataset
 from datasets.NormalizedClusteredStormDamageDataset import NormalizedClusteredStormDamageDataset
-from datasets.ClusteredStormDamageDatasetBinaryLabels import  ClusteredStormDamageDatasetBinaryLabels
-from typing import Union
 
 class ClusteredStormDamageDatasetIncludesPreviousYear(NormalizedClusteredStormDamageDataset):
     """

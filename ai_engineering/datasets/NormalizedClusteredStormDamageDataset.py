@@ -1,8 +1,5 @@
-from torch.utils.data.dataset import Dataset
-from datasets.ClusteredStormDamageDataset import ClusteredStormDamageDataset
 from datasets.ClusteredStormDamageDatasetBinaryLabels import ClusteredStormDamageDatasetBinaryLabels
 import numpy as np
-from numpy import typing as npt
 import torch
 
 class NormalizedClusteredStormDamageDataset(ClusteredStormDamageDatasetBinaryLabels):

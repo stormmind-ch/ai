@@ -1,7 +1,7 @@
-
 from models.validator import validate
 from torch.utils.data.dataset import Dataset
 from torch.utils.data.dataloader import DataLoader
+import torch.optim.lr_scheduler as lr_scheduler
 from tqdm import tqdm, trange
 from models.init_model import get_seq2seq
 
@@ -14,7 +14,7 @@ import wandb
 def _train_one_epoch(model, dataloader, criterion, optimizer, device):
     model.train()
     running_loss = 0.0
-
+    scheduler = lr_scheduler.LinearLR(optimizer, start_factor=0.1, end_factor=0.5, total_iters=30)
     for inputs, labels, previousyear in tqdm(dataloader, desc="Training", unit="batch", file=sys.stdout, dynamic_ncols=True):
         inputs, labels, previousyear = inputs.to(device), labels.to(device), previousyear.to(device)
         optimizer.zero_grad()
@@ -25,21 +25,24 @@ def _train_one_epoch(model, dataloader, criterion, optimizer, device):
         optimizer.step()
 
         running_loss += loss.item()
-
+    scheduler.step()
     return running_loss / len(dataloader)
 
-def _train(model, train_loader, criterion, optimizer, epochs, device):
+def _train(model, train_loader, val_loader, criterion, optimizer, epochs, device):
     for epoch in trange(epochs, desc="Epochs", file=sys.stdout, dynamic_ncols=True):
         train_loss = _train_one_epoch(model, train_loader, criterion, optimizer, device)
         wandb.log({
             "epoch": epoch + 1,
             "train_loss" : train_loss
         })
+        val_loss, _, _, _, _, _, _ = validate(model,val_loader, criterion,device)
+        wandb.log({
+            "val_loss" : val_loss,
+        })
 
 def train_and_validate(train_dataset: Dataset, test_dataset: Dataset, config, device):
 
     model_paths = []
-
 
     train_loader = DataLoader(train_dataset, batch_size=config.batch_size)
     val_loader = DataLoader(test_dataset, batch_size=config.batch_size)
@@ -49,7 +52,7 @@ def train_and_validate(train_dataset: Dataset, test_dataset: Dataset, config, de
 
     optimizer = get_optimizer(config.optimizer, model.parameters(), config.learning_rate)
     criterion = get_criterion(config.criterion)
-    _train(model, train_loader, criterion, optimizer, config.epochs, device)
+    _train(model, train_loader, val_loader, criterion, optimizer, config.epochs, device)
     avg_loss, accuracy, precision, specificity, f1, labels, predictions = validate(model, val_loader, criterion, device)
 
 

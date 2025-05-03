@@ -143,7 +143,8 @@ class ClusteredStormDamageDataset(Dataset):
             else:
                 features = torch.zeros((8,), dtype=torch.float32)
                 mask_sequence.append(torch.tensor(0, dtype=torch.float32))  # padding data
-                print("added padding")
+                if date.year > 1973:
+                    print(f"added padding for unintended year {date.year}")
 
             feature_sequence.append(features)
 

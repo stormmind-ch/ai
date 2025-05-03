@@ -24,16 +24,21 @@ def main():
                                         '../Ressources/weather_data4',
                                         '../Ressources/municipalities_coordinates_newest.csv',
                                                   n_clusters=config.clusters,
-                                                  n_sequences=2, test_years=10,
+                                                  n_sequences=config.n_sequences, test_years=10,
                                                   grouping_calendar='weekly', split='train',
                                                   damage_weights={0: 0, 1: 0.06, 2: 0.8, 3: 11.3})
     mean, std = train_dataset.mean, train_dataset.std
+
+    wandb.log({
+        "mean": mean,
+        "std": std
+    })
 
     test_dataset = ClusteredStormDamageDatasetIncludesPreviousYear('../Ressources/main_data_1972_2023.csv',
                                         '../Ressources/weather_data4',
                                         '../Ressources/municipalities_coordinates_newest.csv',
                                                   n_clusters=config.clusters,
-                                                  n_sequences=2, test_years=10,
+                                                  n_sequences=config.n_sequences, test_years=10,
                                                   grouping_calendar='weekly', split='train',
                                                   damage_weights={0: 0, 1: 0.06, 2: 0.8, 3: 11.3},
                                                          mean=mean, std=std)
