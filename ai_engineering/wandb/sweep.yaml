@@ -5,7 +5,7 @@ metric:
   goal: maximize
 parameters:
   batch_size:
-    values: [1,8,16,32,64, 128, 256]
+    values: [64, 128, 4096, 8192 ]
   learning_rate:
     min: 0.0001
     max: 0.01
@@ -21,10 +21,12 @@ parameters:
     max: 50
   clusters:
       min: 3
-      max: 300
+      max: 10
   optimizer:
     values: ['adam']
   criterion:
     values: ['crossentropyloss']
   model:
     values: ['Seq2Seq']
+  n_sequences:
+    values: [1, 2, 3, 5]
