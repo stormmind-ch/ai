@@ -4,7 +4,7 @@ import numpy as np
 import itertools
 from ClusteredStormDamageDataset import ClusteredStormDamageDataset
 
-def plot_scatter_matrix(dataset, feature_names=None, num_clusters = None):
+def plot_scatter_matrix(dataset: ClusteredStormDamageDataset, feature_names=None, num_clusters = None):
     # Sample data
     X, y = [], []
     for i in range(len(dataset)):
@@ -12,9 +12,12 @@ def plot_scatter_matrix(dataset, feature_names=None, num_clusters = None):
         X.append(features.numpy())
         y.append(label.item())
     X = np.array(X)
+    X = np.squeeze(X)
     y = np.array(y)
+    unique, count = np.unique(y, return_counts=True)
+    print(f"y unique {unique}, y counts: {count}")
 
-    n_features = X.shape[1]
+    n_features = 4
     if feature_names is None:
         feature_names = [f'feat_{i}' for i in range(n_features)]
 
@@ -25,8 +28,8 @@ def plot_scatter_matrix(dataset, feature_names=None, num_clusters = None):
     axes = np.empty((n_features, n_features), dtype=object)
     scatter = None
 
-    mask_damage = y >= 1
-    mask_nodamage = y < 1
+    mask_damage = y > 0.0
+    mask_nodamage = y == 0.0
 
     for i, j in itertools.product(range(n_features), repeat=2):
         ax = fig.add_subplot(gs[i, j])
@@ -85,9 +88,9 @@ def plot_scatter_matrix(dataset, feature_names=None, num_clusters = None):
 dataset = ClusteredStormDamageDataset('../../Ressources/main_data_1972_2023.csv',
                                            '../../Ressources/weather_data4',
                                            '../../Ressources/municipalities_coordinates_newest.csv',
-                                           'mean', 20,
+                                           6, 0,
                                            grouping_calendar='weekly',
                                            damage_weights={0: 0, 1: 0.06, 2: 0.8, 3: 11.3})
 
-plot_scatter_matrix(dataset, feature_names=['Temperature', 'Sunshine', 'Rain', 'Snow'], num_clusters=20 )
+plot_scatter_matrix(dataset, feature_names=['Temperature', 'Sunshine', 'Rain', 'Snow'], num_clusters=6 )
 
