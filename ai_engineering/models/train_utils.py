@@ -20,7 +20,7 @@ def get_criterion(criterion: str):
     elif str.lower(criterion) == 'l1loss':
         return L1Loss()
     elif str.lower(criterion) == 'crossentropyloss':
-        return CrossEntropyLoss()
+        return CrossEntropyLoss(weight=torch.tensor([0.63977029, 2.28864903]))
     else:
         raise ValueError(f"Unsupported criterion: {criterion}")
 
