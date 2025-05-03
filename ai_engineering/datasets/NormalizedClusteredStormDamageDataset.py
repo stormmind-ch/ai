@@ -28,11 +28,15 @@ class NormalizedClusteredStormDamageDataset(ClusteredStormDamageDatasetBinaryLab
 
     def get_mean_std(self):
         X = []
+        y = []
         for i in range(len(self)):
-            feat, _ = super().__getitem__(i)
+            feat, label = super().__getitem__(i)
             cur = feat[0].squeeze().numpy()  # current week only (t=0), shape [F]
             X.append(cur)
+            y.append(label.item())
         X_all = np.stack(X)  # shape [N, F]
+        y_all = np.array(y) # shape [N]
+        X_all[:, 5] = y_all # replacing the masked labels with the correct labels.
         mean = np.mean(X_all, axis=0)
         std = np.std(X_all, axis=0)
         std[std == 0] = 1e-8
