@@ -39,7 +39,7 @@ def main():
                                         '../Ressources/municipalities_coordinates_newest.csv',
                                                   n_clusters=config.clusters,
                                                   n_sequences=config.n_sequences, test_years=10,
-                                                  grouping_calendar='weekly', split='train',
+                                                  grouping_calendar='weekly', split='test',
                                                   damage_weights={0: 0, 1: 0.06, 2: 0.8, 3: 11.3},
                                                          mean=mean, std=std)
 
