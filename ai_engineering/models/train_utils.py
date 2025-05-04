@@ -14,13 +14,13 @@ def get_optimizer(optimizer: str, model_params: Iterable[Tensor], lr: float):
     if str.lower(optimizer) == 'sgd':
         return SGD(model_params, lr)
 
-def get_criterion(criterion: str):
+def get_criterion(criterion: str, weights):
     if str.lower(criterion) == 'mseloss':
         return MSELoss()
     elif str.lower(criterion) == 'l1loss':
         return L1Loss()
     elif str.lower(criterion) == 'crossentropyloss':
-        return CrossEntropyLoss(weight=torch.tensor([0.63977029, 2.28864903]))
+        return CrossEntropyLoss(weight=weights)
     else:
         raise ValueError(f"Unsupported criterion: {criterion}")
 

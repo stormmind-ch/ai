@@ -8,7 +8,7 @@ from models.init_model import get_seq2seq
 import sys
 from models.train_utils import get_optimizer, get_criterion, create_splits, save_model
 import wandb
-
+import torch
 
 
 def _train_one_epoch(model, dataloader, criterion, optimizer, device):
@@ -51,7 +51,7 @@ def train_and_validate(train_dataset: Dataset, test_dataset: Dataset, config, de
     model.to(device)
 
     optimizer = get_optimizer(config.optimizer, model.parameters(), config.learning_rate)
-    criterion = get_criterion(config.criterion)
+    criterion = get_criterion(config.criterion, torch.tensor([0.63977029, 2.28864903]).to(device))
     _train(model, train_loader, val_loader, criterion, optimizer, config.epochs, device)
     avg_loss, accuracy, precision, specificity, f1, labels, predictions = validate(model, val_loader, criterion, device)
 
