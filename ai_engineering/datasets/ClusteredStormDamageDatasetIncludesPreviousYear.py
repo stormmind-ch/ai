@@ -47,7 +47,6 @@ class ClusteredStormDamageDatasetIncludesPreviousYear(NormalizedClusteredStormDa
 
 
 
-
 def get_past_week_dates_year(base_date: date, timespan: int):
     # Step 1: Get the current year's Sundays (backward)
     current_dates = [base_date - timedelta(weeks=i) for i in range(timespan + 1)]

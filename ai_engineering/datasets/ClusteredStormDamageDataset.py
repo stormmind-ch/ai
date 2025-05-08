@@ -29,17 +29,19 @@ def _load_main_data(main_data_path: str, municipality_coordinates_path,
     return final, clusters
 
 
-def split_dataframe_by_time(df: pl.DataFrame, test_years: int) -> tuple[
-    pl.DataFrame, pl.DataFrame]:
+def split_dataframe_by_time(df: pl.DataFrame, val_years : int,  test_years: int) -> tuple[
+    pl.DataFrame, pl.DataFrame, pl.DataFrame]:
     df = df.sort("end_date")
     last_date = df.select(pl.col("end_date").max()).item()
 
     test_start = last_date.replace(year=last_date.year - test_years)
+    val_start = last_date.replace(year=test_start.year -  val_years)
 
-    train = df.filter(pl.col("end_date") < test_start)
+    train = df.filter(pl.col("end_date") < val_start)
+    val = df.filter((pl.col("end_date") >= val_start) & (pl.col("end_date") < test_start))
     test = df.filter(pl.col("end_date") >= test_start)
 
-    return train, test
+    return train, val, test
 
 
 def build_lookup(df:pl.DataFrame):
@@ -56,7 +58,7 @@ def get_past_week_dates(base_date, timespan):
 
 class ClusteredStormDamageDataset(Dataset):
     def __init__(self, main_data_path : str, weather_data_dir: str, municipality_coordinates_path:str, n_clusters: int, n_sequences:int,
-                 split: str = None, test_years: int = 2, damage_distribution:list[float] = [0.90047344, 0.06673681, 0.03278976],
+                 split: str = None,val_years: int = 2, test_years: int = 2, damage_distribution:list[float] = [0.90047344, 0.06673681, 0.03278976],
                  damage_weights:dict[int:float]=None, grouping_calendar: str = 'weekly'):
         """
         Args:
@@ -66,6 +68,7 @@ class ClusteredStormDamageDataset(Dataset):
             n_sequences: Amount of weeks or months (depending on grouping_calendar) which should be considered for a backward lookup
             n_clusters: Number of clusters which should be created
             split: 'test' or 'train'
+            val_years: how many years should be used for the validation
             test_years: how many years should be used for the testing
             damage_distribution: distribution of the damages in the original Dataset.
             damage_weights: each damage (small, medium, large) can here be weighted for the summed damage in CHF
@@ -75,14 +78,17 @@ class ClusteredStormDamageDataset(Dataset):
         self.n_sequences = n_sequences
         self.timespan_calendar = grouping_calendar if grouping_calendar else None
         self.weather_data_cache = preload_weather_data(weather_data_dir, clusters)
-        train_df, test_df = split_dataframe_by_time(self.dataframe, test_years)
+        train_df, val_df,  test_df = split_dataframe_by_time(self.dataframe, val_years, test_years)
         if split == 'train':
             self.dataframe = train_df
+        elif split == 'val':
+            self.dataframe = val_df
         elif split == 'test':
             self.dataframe = test_df
         else:
             self.dataframe = self.dataframe
         self.dataframe.sort("end_date")
+
         self.lookup = build_lookup(self.dataframe)
 
     def __len__(self):

@@ -3,7 +3,7 @@ from datasets.ClusteredStormDamageDatasetIncludesPreviousYear import ClusteredSt
 import torch
 import torch.optim
 import wandb
-
+from datasets.NormalizedClusteredStormDamageDataset import NormalizedClusteredStormDamageDataset
 
 
 def init_wandb():
@@ -20,7 +20,7 @@ def main():
     config = init_wandb()
     device = init_device()
 
-    train_dataset = ClusteredStormDamageDatasetIncludesPreviousYear('../Ressources/main_data_1972_2023.csv',
+    train_dataset = NormalizedClusteredStormDamageDataset('../Ressources/main_data_1972_2023.csv',
                                         '../Ressources/weather_data4',
                                         '../Ressources/municipalities_coordinates_newest.csv',
                                                   n_clusters=config.clusters,
@@ -34,7 +34,7 @@ def main():
         "std": std
     })
 
-    test_dataset = ClusteredStormDamageDatasetIncludesPreviousYear('../Ressources/main_data_1972_2023.csv',
+    test_dataset = NormalizedClusteredStormDamageDataset('../Ressources/main_data_1972_2023.csv',
                                         '../Ressources/weather_data4',
                                         '../Ressources/municipalities_coordinates_newest.csv',
                                                   n_clusters=config.clusters,

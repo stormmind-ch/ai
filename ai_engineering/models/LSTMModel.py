@@ -2,21 +2,22 @@ import torch.nn as nn
 import torch
 
 class LSTM(nn.Module):
-    def __init__(self, input_dim: int, hidden_dim : int, layer_dim: int, output_dim: int):
-        super(LSTM, self).__init__()
-        self.hidden_dim = hidden_dim
-        self.layer_dim = layer_dim
-        self.lstm = nn.LSTM(input_dim, hidden_dim, layer_dim, batch_first=True)
-        self.fc = nn.Linear(hidden_dim, output_dim)
+    def __init__(self, input_size=8, hidden_size=256, num_layers=2, out_features=4):
+        super().__init__()
+        self.lstm = nn.LSTM(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers, batch_first=True)
+        self.dropout = nn.Dropout(0.5)
+        self.fc1 = nn.Linear(hidden_size, hidden_size)
+        self.fc2 = nn.Linear(hidden_size, out_features)
+        self.relu = nn.ReLU()
 
-    def forward(self, x, hc=None):
-        if hc is None:
-            h0 = torch.zeros(self.layer_dim, x.size(0), self.hidden_dim).to(x.device)
-            c0 = torch.zeros(self.layer_dim, x.size(0), self.hidden_dim).to(x.device)
-        else:
-            h0, c0 = hc
-        out, (hn, cn) = self.lstm(x, (h0, c0))
-        out = self.fc(out[:, -1, :])  # maybe
-        return out, (hn, cn)
+    def forward(self, x):
+        # x: (batch_size, seq_len, input_size)
+        output, (hn, cn) = self.lstm(x)
+        last_hidden = hn[-1]
+        last_hidden = self.dropout(last_hidden)
+        out = self.fc1(last_hidden)
+        out = self.relu(out)
+        out = self.fc2(out)
+        return out
 
 

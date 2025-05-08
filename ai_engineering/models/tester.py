@@ -1,4 +1,4 @@
-from models.init_model import init_model
+from models.init_model import init_model, get_seq2seq
 from models.validator import validate
 from torch.utils.data import Dataset
 from models.train_utils import create_splits, get_criterion
