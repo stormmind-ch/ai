@@ -1,0 +1,19 @@
+program: main.py
+method: bayes
+metric:
+  name: val_f1
+  goal: maximize
+parameters:
+  batch_size:
+    values: [32, 64, 128, 4096]
+  learning_rate:
+    min: 0.00001
+    max: 0.01
+  epochs:
+    min: 10
+    max: 200
+  clusters:
+      min: 3
+      max: 10
+  model:
+    values: ['FNN']
