@@ -3,22 +3,26 @@ from torch.utils.data.dataset import Dataset
 from torch.utils.data.dataloader import DataLoader
 import torch.optim.lr_scheduler as lr_scheduler
 from tqdm import tqdm, trange
-from models.init_model import get_seq2seq
-
+from models.init_model import get_seq2seq, get_fnn
+from torch.optim.adam import Adam
 import sys
-from models.train_utils import get_optimizer, get_criterion, create_splits, save_model
+from models.train_utils import save_model, calculate_class_weights
+from torch.nn import CrossEntropyLoss
 import wandb
-import torch
 
 
 def _train_one_epoch(model, dataloader, criterion, optimizer, device):
     model.train()
     running_loss = 0.0
     scheduler = lr_scheduler.LinearLR(optimizer, start_factor=0.1, end_factor=0.5, total_iters=30)
-    for inputs, labels, previousyear in tqdm(dataloader, desc="Training", unit="batch", file=sys.stdout, dynamic_ncols=True):
-        inputs, labels, previousyear = inputs.to(device), labels.to(device), previousyear.to(device)
+    for inputs, labels in tqdm(dataloader, desc="Training", unit="batch", file=sys.stdout, dynamic_ncols=True):
+        inputs = inputs[:, :, :3]
+        inputs = inputs.float()
+        inputs, labels = inputs.to(device), labels.to(device)
         optimizer.zero_grad()
-        outputs = model(inputs, previousyear)
+        outputs = model(inputs).squeeze(1)
+        print(f"Output shape: {outputs.shape}")
+        print(f"Label shape: {labels.shape}")
 
         loss = criterion(outputs, labels)
         loss.backward()
@@ -35,35 +39,24 @@ def _train(model, train_loader, val_loader, criterion, optimizer, epochs, device
             "epoch": epoch + 1,
             "train_loss" : train_loss
         })
-        val_loss, _, _, _, _, _, _ = validate(model,val_loader, criterion,device)
+        val_loss, accuracy, precision, specificity, val_f1, _, _ = validate(model,val_loader, criterion,device)
         wandb.log({
             "val_loss" : val_loss,
+            "val_accuracy": accuracy,
+            "val_precision": precision,
+            "val_specificy": specificity,
+            "val_f1": val_f1
         })
 
 def train(train_dataset: Dataset, test_dataset: Dataset, config, device):
-
-    model_paths = []
-
     train_loader = DataLoader(train_dataset, batch_size=config.batch_size)
     val_loader = DataLoader(test_dataset, batch_size=config.batch_size)
 
-    model = get_seq2seq(config.hidden_size, config.num_layers, config.p)
+    model = get_fnn()
     model.to(device)
 
-    optimizer = get_optimizer(config.optimizer, model.parameters(), config.learning_rate)
-    criterion = get_criterion(config.criterion, torch.tensor([0.63977029, 2.28864903]).to(device))
+    optimizer = Adam(model.parameters(), lr=config.learning_rate)
+    class_weights = calculate_class_weights(train_dataset).to(device).float()
+    criterion = CrossEntropyLoss(weight=class_weights)
     _train(model, train_loader, val_loader, criterion, optimizer, config.epochs, device)
-    avg_loss, accuracy, precision, specificity, f1, labels, predictions = validate(model, val_loader, criterion, device)
-
-
-    path = save_model(model)
-    model_paths.append(path)
-    wandb.log({
-        "avg_loss" : avg_loss,
-        "accuracy": accuracy,
-        "precision": precision,
-        "specificity" : specificity,
-        "f1": f1
-    })
-
-    return model_paths
+    return model, criterion

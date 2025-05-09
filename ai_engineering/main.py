@@ -1,10 +1,10 @@
-from models.trainer import train_and_validate
-from datasets.ClusteredStormDamageDatasetIncludesPreviousYear import ClusteredStormDamageDatasetIncludesPreviousYear
+from models.FNN_trainer import train
+from torch.utils.data.dataloader import DataLoader
 import torch
 import torch.optim
 import wandb
 from datasets.NormalizedClusteredStormDamageDataset import NormalizedClusteredStormDamageDataset
-
+from models.FNN_validator import validate
 
 def init_wandb():
     wandb.init(project="stormmind.ai")
@@ -34,6 +34,14 @@ def main():
         "std": std
     })
 
+    val_dataset = NormalizedClusteredStormDamageDataset('../Ressources/main_data_1972_2023.csv',
+                                        '../Ressources/weather_data4',
+                                        '../Ressources/municipalities_coordinates_newest.csv',
+                                                  n_clusters=config.clusters,
+                                                  n_sequences=config.n_sequences, test_years=10,
+                                                  grouping_calendar='weekly', split='val',
+                                                  damage_weights={0: 0, 1: 0.06, 2: 0.8, 3: 11.3},
+                                                         mean=mean, std=std)
     test_dataset = NormalizedClusteredStormDamageDataset('../Ressources/main_data_1972_2023.csv',
                                         '../Ressources/weather_data4',
                                         '../Ressources/municipalities_coordinates_newest.csv',
@@ -44,8 +52,9 @@ def main():
                                                          mean=mean, std=std)
 
 
-    model_paths = train_and_validate(train_dataset, test_dataset, config, device)
-
+    model, criterion = train(train_dataset, val_dataset, config, device)
+    test_loader = DataLoader(test_dataset )
+    validate(model, test_loader, criterion, device)
 
 
 

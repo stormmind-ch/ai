@@ -43,9 +43,7 @@ class NormalizedClusteredStormDamageDataset(ClusteredStormDamageDatasetBinaryLab
         return torch.tensor(mean, dtype=torch.float32), torch.tensor(std, dtype=torch.float32)
 
     def normalize_features(self, features):
-        mean = torch.tensor(self.mean, device=features.device)
-        std = torch.tensor(self.std,  device=features.device)
-        features_normalized = (features - mean) / std
+        features_normalized = (features - self.mean) / self.std
         return features_normalized
 
 

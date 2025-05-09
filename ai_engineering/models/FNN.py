@@ -1,8 +1,8 @@
 import torch.nn as nn
 
-class SimpleMLP(nn.Module):
+class FNN(nn.Module):
     def __init__(self):
-        super(SimpleMLP, self).__init__()
+        super(FNN, self).__init__()
         self.net = nn.Sequential(
             nn.Linear(3,16),
             nn.ReLU(),
@@ -20,8 +20,7 @@ class SimpleMLP(nn.Module):
             nn.ReLU(),
             nn.Linear(32, 16),
             nn.ReLU(),
-            nn.Linear(16, 8),
-            nn.Linear(8,2)
+            nn.Linear(16, 2),
         )
 
     def forward(self, x):

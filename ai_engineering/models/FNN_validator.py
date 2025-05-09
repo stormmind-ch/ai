@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import wandb
 from sklearn.metrics import classification_report
 
-def validate(model, dataloader, criterion, device):
+def validate(model, dataloader, criterion, device, testing=False):
     """
     Args:
         model: the model which should be validated
@@ -33,10 +33,11 @@ def validate(model, dataloader, criterion, device):
     all_labels = []
 
     with torch.no_grad():
-        for inputs, labels, previousyear in tqdm(dataloader, desc="Validating", unit="batch", file=sys.stdout, dynamic_ncols=True):
-            inputs, labels, previousyear = inputs.to(device), labels.to(device), previousyear.to(device)
-
-            outputs= model(inputs, previousyear)
+        for inputs, labels in tqdm(dataloader, desc="Validating", unit="batch", file=sys.stdout, dynamic_ncols=True):
+            inputs = inputs[:, :, :3]
+            inputs = inputs.float()
+            inputs, labels = inputs.to(device), labels.to(device)
+            outputs= model(inputs).squeeze(1)
             loss = criterion(outputs, labels)
 
             running_loss += loss.item()
@@ -47,8 +48,8 @@ def validate(model, dataloader, criterion, device):
 
         all_preds = np.concatenate(all_preds)
         all_labels = np.concatenate(all_labels)
-
-    log_classification_report_heatmap(all_labels, all_preds)
+    if testing:
+        log_classification_report_heatmap(all_labels, all_preds)
     avg_loss = running_loss / len(dataloader)
     accuracy = accuracy_score(all_labels, all_preds, normalize=True)
     precision = precision_score(all_labels, all_preds, average='macro')
