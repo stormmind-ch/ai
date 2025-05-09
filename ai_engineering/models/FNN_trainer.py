@@ -21,8 +21,6 @@ def _train_one_epoch(model, dataloader, criterion, optimizer, device):
         inputs, labels = inputs.to(device), labels.to(device)
         optimizer.zero_grad()
         outputs = model(inputs).squeeze(1)
-        print(f"Output shape: {outputs.shape}")
-        print(f"Label shape: {labels.shape}")
 
         loss = criterion(outputs, labels)
         loss.backward()
