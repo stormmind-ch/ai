@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import wandb
 from sklearn.metrics import classification_report
 
-def validate(model, dataloader, criterion, device, testing=False):
+def validate(model, dataloader, criterion, threshold, device, testing=False):
     """
     Args:
         model: the model which should be validated
@@ -42,6 +42,8 @@ def validate(model, dataloader, criterion, device, testing=False):
 
             running_loss += loss.item()
             predictions = torch.argmax(outputs, dim=1)
+            threshold =  threshold# Example: more conservative, favors precision
+            predictions = (predictions >= threshold).long()
 
             all_preds.append(predictions.cpu().numpy())
             all_labels.append(labels.cpu().numpy())

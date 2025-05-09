@@ -19,3 +19,6 @@ parameters:
     values: ['FNN']
   n_sequences:
     values: [0]
+  threshold:
+    min: 0.3
+    max: 0.6

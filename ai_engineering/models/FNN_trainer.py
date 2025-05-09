@@ -30,14 +30,14 @@ def _train_one_epoch(model, dataloader, criterion, optimizer, device):
     scheduler.step()
     return running_loss / len(dataloader)
 
-def _train(model, train_loader, val_loader, criterion, optimizer, epochs, device):
+def _train(model, train_loader, val_loader, criterion, optimizer, epochs, threshold, device):
     for epoch in trange(epochs, desc="Epochs", file=sys.stdout, dynamic_ncols=True):
         train_loss = _train_one_epoch(model, train_loader, criterion, optimizer, device)
         wandb.log({
             "epoch": epoch + 1,
             "train_loss" : train_loss
         })
-        val_loss, accuracy, precision, specificity, val_f1, _, _ = validate(model,val_loader, criterion,device)
+        val_loss, accuracy, precision, specificity, val_f1, _, _ = validate(model,val_loader, criterion,threshold, device)
         wandb.log({
             "val_loss" : val_loss,
             "val_accuracy": accuracy,
@@ -56,5 +56,5 @@ def train(train_dataset: Dataset, test_dataset: Dataset, config, device):
     optimizer = Adam(model.parameters(), lr=config.learning_rate)
     class_weights = calculate_class_weights(train_dataset).to(device).float()
     criterion = CrossEntropyLoss(weight=class_weights)
-    _train(model, train_loader, val_loader, criterion, optimizer, config.epochs, device)
+    _train(model, train_loader, val_loader, criterion, optimizer, config.epochs, config.threshold, device)
     return model, criterion

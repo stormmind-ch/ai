@@ -54,7 +54,14 @@ def main():
 
     model, criterion = train(train_dataset, val_dataset, config, device)
     test_loader = DataLoader(test_dataset )
-    validate(model, test_loader, criterion, device)
+    avg_loss, accuracy, precision, specificity, f1, all_labels, all_preds = validate(model, test_loader, criterion, config.threshold, device, testing=True)
+    wandb.log({
+        "test_loss": avg_loss,
+        "test_accuracy": accuracy,
+        "test_precision": precision,
+        "test_specificity": specificity,
+        "test_f1": f1,
+    })
 
 
 
