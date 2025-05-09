@@ -17,3 +17,5 @@ parameters:
       max: 10
   model:
     values: ['FNN']
+  n_sequences:
+    values: [0]
