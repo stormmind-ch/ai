@@ -59,7 +59,7 @@ def get_past_week_dates(base_date, timespan):
 class ClusteredStormDamageDataset(Dataset):
     def __init__(self, main_data_path : str, weather_data_dir: str, municipality_coordinates_path:str, n_clusters: int, n_sequences:int,
                  split: str = None,val_years: int = 2, test_years: int = 2, damage_distribution:list[float] = [0.90047344, 0.06673681, 0.03278976],
-                 damage_weights:dict[int:float]=None, grouping_calendar: str = 'weekly'):
+                 damage_weights:dict[int:float]=None, grouping_calendar: str = 'weekly', grouping_daily: int = None):
         """
         Args:
             main_data_path: Path to main data file containing a entry for each day and municipality and the damage
@@ -77,6 +77,7 @@ class ClusteredStormDamageDataset(Dataset):
         self.dataframe, clusters = _load_main_data(main_data_path, municipality_coordinates_path, n_clusters, damage_weights, n_sequences, grouping_calendar, damage_distribution)
         self.n_sequences = n_sequences
         self.timespan_calendar = grouping_calendar if grouping_calendar else None
+        self.timespan_int = grouping_daily if grouping_daily else None
         self.weather_data_cache = preload_weather_data(weather_data_dir, clusters)
         train_df, val_df,  test_df = split_dataframe_by_time(self.dataframe, val_years, test_years)
         if split == 'train':

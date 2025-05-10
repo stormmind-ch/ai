@@ -9,8 +9,11 @@ class ClusteredStormDamageDatasetBinaryLabels(ClusteredStormDamageDataset):
     def __init__(self, main_data_path : str, weather_data_dir: str, municipality_coordinates_path:str, n_clusters: int, n_sequences:int,
                  split: str = None,val_years : int = 2, test_years: int = 2,
                  damage_distribution:list[float] = [0.90047344, 0.06673681, 0.03278976],
-                 damage_weights:dict[int:float]=None, grouping_calendar: str = 'weekly'):
-        super().__init__(main_data_path, weather_data_dir, municipality_coordinates_path, n_clusters, n_sequences, split, val_years, test_years, damage_distribution, damage_weights, grouping_calendar)
+                 damage_weights:dict[int:float]=None, grouping_calendar: str = 'weekly', grouping_daily: int= None):
+        super().__init__(main_data_path, weather_data_dir, municipality_coordinates_path,
+                         n_clusters, n_sequences, split,
+                         val_years, test_years, damage_distribution,
+                         damage_weights, grouping_calendar, grouping_daily)
 
 
     def __getitem__(self, idx):

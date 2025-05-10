@@ -11,10 +11,12 @@ class NormalizedClusteredStormDamageDataset(ClusteredStormDamageDatasetBinaryLab
                  n_sequences: int,
                  split: str = None, val_years: int =2, test_years: int = 2,
                  damage_distribution: list[float] = [0.90047344, 0.06673681, 0.03278976],
-                 damage_weights: dict[int:float] = None, grouping_calendar: str = 'weekly',
+                 damage_weights: dict[int:float] = None, grouping_calendar: str = 'weekly', grouping_daily: int = None,
                  mean=None, std=None):
-        super().__init__(main_data_path, weather_data_dir, municipality_coordinates_path, n_clusters, n_sequences,
-                         split, val_years, test_years, damage_distribution, damage_weights, grouping_calendar)
+        super().__init__(main_data_path, weather_data_dir, municipality_coordinates_path,
+                         n_clusters, n_sequences,split,
+                         val_years, test_years, damage_distribution,
+                         damage_weights, grouping_calendar, grouping_daily)
         self.mean, self.std = mean, std
 
         if self.mean is None or self.std is None:
