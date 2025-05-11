@@ -1,12 +1,12 @@
-from models.FNN_validator import validate
+from validation.validation import validate
 from torch.utils.data.dataset import Dataset
 from torch.utils.data.dataloader import DataLoader
 import torch.optim.lr_scheduler as lr_scheduler
 from tqdm import tqdm, trange
-from models.init_model import get_seq2seq, get_fnn
+from utils.init_model import get_model
 from torch.optim.adam import Adam
 import sys
-from models.train_utils import save_model, calculate_class_weights
+from utils.train_utils import calculate_class_weights
 from torch.nn import CrossEntropyLoss
 import wandb
 
@@ -16,11 +16,10 @@ def _train_one_epoch(model, dataloader, criterion, optimizer, device):
     running_loss = 0.0
     scheduler = lr_scheduler.LinearLR(optimizer, start_factor=0.1, end_factor=0.5, total_iters=30)
     for inputs, labels in tqdm(dataloader, desc="Training", unit="batch", file=sys.stdout, dynamic_ncols=True):
-        inputs = inputs[:, :, :3]
         inputs = inputs.float()
         inputs, labels = inputs.to(device), labels.to(device)
         optimizer.zero_grad()
-        outputs = model(inputs).squeeze(1)
+        outputs = model(inputs).squeeze()
 
         loss = criterion(outputs, labels)
         loss.backward()
@@ -50,7 +49,7 @@ def train(train_dataset: Dataset, test_dataset: Dataset, config, device):
     train_loader = DataLoader(train_dataset, batch_size=config.batch_size)
     val_loader = DataLoader(test_dataset, batch_size=config.batch_size)
 
-    model = get_fnn()
+    model = get_model(config.model)
     model.to(device)
 
     optimizer = Adam(model.parameters(), lr=config.learning_rate)

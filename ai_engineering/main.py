@@ -1,10 +1,10 @@
-from models.FNN_trainer import train
+from training.train import train
 from torch.utils.data.dataloader import DataLoader
 import torch
 import torch.optim
 import wandb
 from datasets.NormalizedClusteredStormDamageDataset import NormalizedClusteredStormDamageDataset
-from models.FNN_validator import validate
+from validation.validation import validate
 
 def init_wandb():
     wandb.init(project="stormmind.ai")
@@ -62,8 +62,6 @@ def main():
         "test_specificity": specificity,
         "test_f1": f1,
     })
-
-
 
 
 if __name__ == "__main__":

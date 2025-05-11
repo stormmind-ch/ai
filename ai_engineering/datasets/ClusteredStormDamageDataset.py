@@ -59,7 +59,8 @@ def get_past_week_dates(base_date, timespan):
 class ClusteredStormDamageDataset(Dataset):
     def __init__(self, main_data_path : str, weather_data_dir: str, municipality_coordinates_path:str, n_clusters: int, n_sequences:int,
                  split: str = None,val_years: int = 2, test_years: int = 2, damage_distribution:list[float] = [0.90047344, 0.06673681, 0.03278976],
-                 damage_weights:dict[int:float]=None, grouping_calendar: str = 'weekly', grouping_daily: int = None):
+                 damage_weights:dict[int:float]=None, grouping_calendar: str = 'weekly', grouping_daily: int = None,
+                 features_indexes: list[int] = [0,1,2,3,4,5,6,7]):
         """
         Args:
             main_data_path: Path to main data file containing a entry for each day and municipality and the damage
@@ -73,12 +74,15 @@ class ClusteredStormDamageDataset(Dataset):
             damage_distribution: distribution of the damages in the original Dataset.
             damage_weights: each damage (small, medium, large) can here be weighted for the summed damage in CHF
             grouping_calendar: If the data should be grouped weekly or monthly. eg. what one timestamp should include.
+            grouping_daily: If the data should be grouped daily. Same as grouping_calendar, but daily based.
+            features_indexes: Which features should be returned (indexes)
         """
         self.dataframe, clusters = _load_main_data(main_data_path, municipality_coordinates_path, n_clusters, damage_weights, n_sequences, grouping_calendar, damage_distribution)
         self.n_sequences = n_sequences
         self.timespan_calendar = grouping_calendar if grouping_calendar else None
         self.timespan_int = grouping_daily if grouping_daily else None
         self.weather_data_cache = preload_weather_data(weather_data_dir, clusters)
+        self.feature_indexes = features_indexes
         train_df, val_df,  test_df = split_dataframe_by_time(self.dataframe, val_years, test_years)
         if split == 'train':
             self.dataframe = train_df
@@ -98,8 +102,9 @@ class ClusteredStormDamageDataset(Dataset):
     def __getitem__(self, idx):
         """
         Returns the data of size:
-            features: (sequence_length, 8) in the following order:
+            features: (sequence_length, 8) in the following order, if feature_indexes is not specified:
                 temperature_2m_mean, sun_duration_mean, rain_sun, snow_sum, label (only of last sequence), month, latitude, longitude
+                In case feature_indexes is specified, only those features will be returned and features have shape ( sequence_length, len(feature_indexes)
             labels: (1)
         """
         if idx >= len(self):
@@ -115,7 +120,7 @@ class ClusteredStormDamageDataset(Dataset):
 
         # dates are from the current back to the one furthest in the past
         features = self.get_feature_sequence(dates, end_date, municipality, latitude, longitude)
-
+        features = features[:, self.feature_indexes]
         label = torch.tensor(damage, dtype=torch.long)
 
         return features, label

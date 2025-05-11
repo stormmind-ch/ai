@@ -34,15 +34,14 @@ def validate(model, dataloader, criterion, threshold, device, testing=False):
 
     with torch.no_grad():
         for inputs, labels in tqdm(dataloader, desc="Validating", unit="batch", file=sys.stdout, dynamic_ncols=True):
-            inputs = inputs[:, :, :3]
             inputs = inputs.float()
             inputs, labels = inputs.to(device), labels.to(device)
-            outputs= model(inputs).squeeze(1)
+            outputs= model(inputs).squeeze()
             loss = criterion(outputs, labels)
 
             running_loss += loss.item()
             predictions = torch.argmax(outputs, dim=1)
-            threshold =  threshold# Example: more conservative, favors precision
+            threshold =  threshold
             predictions = (predictions >= threshold).long()
 
             all_preds.append(predictions.cpu().numpy())
